@@ -2,9 +2,12 @@
 // Replace with your own Firebase project credentials for family leaderboard sync.
 // Get a free project at https://console.firebase.google.com/
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
+  apiKey: "AIzaSyCgsme2Umk-NSdTiBJplNeLNH1QD17j7do",
+  authDomain: "ironlog-family.firebaseapp.com",
+  projectId: "ironlog-family",
+  storageBucket: "ironlog-family.firebasestorage.app",
+  messagingSenderId: "877808551901",
+  appId: "1:877808551901:web:b74e623dc05c32e94bd834",
 };
 
 // ── Data ────────────────────────────────────────────────────────────────────
