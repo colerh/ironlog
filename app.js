@@ -58,22 +58,21 @@ const MUSCLE_MAP = {
 
 const MUSCLE_GROUPS = ['Chest','Front Delts','Side Delts','Rear Delts','Traps','Back','Lower Back','Biceps','Triceps','Quads','Hamstrings','Glutes','Calves','Core'];
 
-// Muscle group → SVG element IDs used in the body diagram
-const MUSCLE_SVG_IDS = {
-  'Chest':       ['svg-chest-l','svg-chest-r'],
-  'Front Delts': ['svg-fdelt-l','svg-fdelt-r'],
-  'Side Delts':  ['svg-fdelt-l','svg-fdelt-r'],
-  'Rear Delts':  ['svg-rdelt-l','svg-rdelt-r'],
-  'Traps':       ['svg-trap'],
-  'Back':        ['svg-lat-l','svg-lat-r','svg-lback'],
-  'Lower Back':  ['svg-lback'],
-  'Biceps':      ['svg-bi-l','svg-bi-r'],
-  'Triceps':     ['svg-tri-l','svg-tri-r'],
-  'Core':        ['svg-core'],
-  'Glutes':      ['svg-glute-l','svg-glute-r'],
-  'Quads':       ['svg-quad-l','svg-quad-r'],
-  'Hamstrings':  ['svg-ham-l','svg-ham-r'],
-  'Calves':      ['svg-calf-l-f','svg-calf-r-f','svg-calf-l-b','svg-calf-r-b'],
+const MUSCLE_ID_MAP = {
+  'Chest':       ['chest-upper-left','chest-upper-right','chest-lower-left','chest-lower-right'],
+  'Front Delts': ['deltoid-anterior-left','deltoid-anterior-right'],
+  'Side Delts':  ['deltoid-anterior-left','deltoid-anterior-right'],
+  'Rear Delts':  ['deltoid-posterior-left','deltoid-posterior-right'],
+  'Traps':       ['trapezius-upper-left','trapezius-upper-right'],
+  'Back':        ['latissimus-dorsi-left','latissimus-dorsi-right'],
+  'Lower Back':  ['latissimus-dorsi-left','latissimus-dorsi-right'],
+  'Biceps':      ['biceps-left','biceps-right'],
+  'Triceps':     ['triceps-left','triceps-right'],
+  'Core':        ['rectus-abdominis','obliques-left','obliques-right'],
+  'Glutes':      ['gluteus-maximus-left','gluteus-maximus-right'],
+  'Quads':       ['quadriceps-left','quadriceps-right'],
+  'Hamstrings':  ['hamstrings-left','hamstrings-right'],
+  'Calves':      ['gastrocnemius-left','gastrocnemius-right'],
 };
 
 const COLORS = ['#6c63ff','#ec4899','#f59e0b','#22c55e','#06b6d4','#ef4444','#8b5cf6','#f97316'];
@@ -778,7 +777,36 @@ function muscleColor(count) {
 }
 function muscleOpacity(count) { return count>0 ? '0.85' : '0.35'; }
 
-// Build inline SVG body diagram
+let _frontChart = null, _backChart = null;
+
+function initBodyCharts() {
+  const lib = window.BodyMuscles;
+  if (!lib) return;
+  const { BodyChart, ViewSide } = lib;
+  if (!BodyChart || !ViewSide) return;
+  const frontEl = document.getElementById('muscle-front-view');
+  const backEl  = document.getElementById('muscle-back-view');
+  if (!frontEl || !backEl) return;
+  try {
+    frontEl.innerHTML = '';
+    backEl.innerHTML  = '';
+    _frontChart = new BodyChart(frontEl, { side: ViewSide.FRONT });
+    _backChart  = new BodyChart(backEl,  { side: ViewSide.BACK  });
+  } catch(e) { console.warn('BodyChart init:', e); }
+}
+
+function buildBodyState(counts) {
+  const state = {};
+  MUSCLE_GROUPS.forEach(group => {
+    const intensity = counts[group] >= 2 ? 8 : counts[group] === 1 ? 4 : 0;
+    (MUSCLE_ID_MAP[group] || []).forEach(id => {
+      if (state[id] === undefined || intensity > state[id]) state[id] = intensity;
+    });
+  });
+  return state;
+}
+
+// Legacy — keep signature so no other references break
 function buildBodySVG(side, counts) {
   // Map group counts to fill colors for SVG elements
   const col = groups => {
@@ -919,8 +947,12 @@ function buildBodySVG(side, counts) {
 function renderMuscleMap() {
   const counts = getMuscleSessionCounts();
 
-  document.getElementById('muscle-front-view').innerHTML = buildBodySVG('front', counts);
-  document.getElementById('muscle-back-view').innerHTML  = buildBodySVG('back',  counts);
+  if (!_frontChart || !_backChart) initBodyCharts();
+  if (_frontChart && _backChart) {
+    const bodyState = buildBodyState(counts);
+    _frontChart.update(bodyState);
+    _backChart.update(bodyState);
+  }
 
   document.getElementById('muscle-grid').innerHTML = MUSCLE_GROUPS.map(m => {
     const n = counts[m];
