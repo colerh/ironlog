@@ -23,6 +23,10 @@
   <div class="menu-sheet">
     <div class="menu-sheet-title">More</div>
     <div class="menu-grid">
+      <div class="menu-item" data-tab="progress">
+        <div class="menu-item-icon">📈</div>
+        <div class="menu-item-label">Stats</div>
+      </div>
       <div class="menu-item" data-tab="goals">
         <div class="menu-item-icon">🎯</div>
         <div class="menu-item-label">Goals</div>
@@ -57,6 +61,10 @@
     <a class="nav-item" data-tab="log">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       Log Day
+    </a>
+    <a class="nav-item" data-tab="health">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Health
     </a>
     <a class="nav-item" data-tab="progress">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -101,17 +109,22 @@
   <!-- ── Main ──────────────────────────────────────── -->
   <main id="main">
 
-    <!-- Home feed -->
+    <!-- Home -->
     <div id="tab-home" class="tab-content active">
       <div class="top-bar">
         <h1 style="margin:0">🏋️ IronLog</h1>
         <button class="theme-toggle" id="home-theme-btn" style="display:none"></button>
       </div>
+      <div id="home-rings"></div>
+      <div class="home-feed-label">Recent Activity</div>
       <div id="home-feed"></div>
     </div>
 
     <!-- Log Day (rendered by JS) -->
     <div id="tab-log" class="tab-content"></div>
+
+    <!-- Health -->
+    <div id="tab-health" class="tab-content"></div>
 
     <!-- Progress -->
     <div id="tab-progress" class="tab-content">
@@ -174,9 +187,9 @@
     <div id="tab-leaderboard" class="tab-content">
       <div class="top-bar"><h1 style="margin:0">Leaderboard</h1></div>
       <div class="card">
-        <h2>Family Code</h2>
+        <h2>Social Code</h2>
         <p style="color:var(--text2);font-size:13px;margin-bottom:12px">
-          Share this code with family members. +10 pts per workout, +5 each for hitting protein / calories / sleep goals.
+          Share this code with family &amp; friends. +10 pts per workout, +5 each for hitting protein / calories / sleep goals.
         </p>
         <div style="display:flex;gap:8px">
           <input id="lb-family-code" type="text" placeholder="e.g. SMITH2025" style="text-transform:uppercase;letter-spacing:.05em;font-weight:600">
@@ -198,10 +211,10 @@
     Home
   </div>
 
-  <!-- Stats -->
-  <div class="nav-item" data-tab="progress">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    Stats
+  <!-- Health -->
+  <div class="nav-item" data-tab="health">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    Health
   </div>
 
   <!-- Body -->

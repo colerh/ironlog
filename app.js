@@ -91,6 +91,12 @@ const getTemplates = () => ls.get('ironlog_templates') || [];
 const setTemplates = v  => ls.set('ironlog_templates', v);
 const getGoals     = () => ls.get('ironlog_goals') || {};
 const setGoals     = v  => ls.set('ironlog_goals', v);
+const getHealthLog = () => ls.get('ironlog_health') || {};
+const setHealthLog = v  => ls.set('ironlog_health', v);
+const getHealthDay = date => { const h=getHealthLog(); return h[date]||{}; };
+const saveHealthDay = (date, data) => {
+  const h=getHealthLog(); h[date]={ ...(h[date]||{}), ...data }; setHealthLog(h);
+};
 
 function getTodayStr() { return new Date().toISOString().slice(0,10); }
 
@@ -234,6 +240,7 @@ function showTab(id) {
   // close menu overlay if open
   document.getElementById('menu-overlay')?.classList.remove('open');
   if (id==='home')        renderHome();
+  if (id==='health')      renderHealth();
   if (id==='progress')    renderProgress();
   if (id==='muscle')      renderMuscleMap();
   if (id==='goals')       renderGoals();
@@ -289,11 +296,17 @@ function buildFeedEntry(item) {
   }).join('');
 
   const stats = item.stats||{};
+  // also pull from health log if available (for local user entries)
+  const hDay = item.date ? getHealthDay(item.date) : {};
+  const protein  = hDay.proteinLog?.reduce((s,v)=>s+v,0) || stats.protein;
+  const calories = hDay.calorieLog?.reduce((s,v)=>s+v,0) || stats.calories;
+  const bw       = hDay.bodyweight || stats.bodyweight;
+  const sleep    = hDay.sleep      || stats.sleep;
   const statChips = [
-    stats.bodyweight ? `<span class="stat-chip">⚖️ ${stats.bodyweight} lbs</span>` : '',
-    stats.protein    ? `<span class="stat-chip">🥩 ${stats.protein}g</span>` : '',
-    stats.calories   ? `<span class="stat-chip">🔥 ${stats.calories} cal</span>` : '',
-    stats.sleep      ? `<span class="stat-chip">😴 ${stats.sleep}h</span>` : '',
+    bw      ? `<span class="stat-chip">⚖️ ${bw} lbs</span>` : '',
+    protein  ? `<span class="stat-chip">🥩 ${Math.round(protein)}g</span>` : '',
+    calories ? `<span class="stat-chip">🔥 ${Math.round(calories)} cal</span>` : '',
+    sleep    ? `<span class="stat-chip">😴 ${sleep}h</span>` : '',
   ].filter(Boolean).join('');
 
   const dateStr = item.date ? fmtDateShort(item.date) : '';
@@ -311,6 +324,47 @@ function buildFeedEntry(item) {
     </div>
     <div class="feed-blocks">${blockHtml}</div>
     ${statChips ? `<div class="feed-stats">${statChips}</div>` : ''}
+  </div>`;
+}
+
+function buildRing(label, pct, value, color) {
+  const p = Math.min(1, Math.max(0, pct||0));
+  const dash = (p * 100).toFixed(1);
+  return `<div class="activity-ring-wrap">
+    <div class="ring-svg-wrap">
+      <svg viewBox="0 0 36 36" class="ring-svg">
+        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--bg3)" stroke-width="3.2"/>
+        <circle cx="18" cy="18" r="15.9" fill="none" stroke="${color}" stroke-width="3.2"
+          stroke-dasharray="${dash} 100" stroke-linecap="round"
+          transform="rotate(-90 18 18)"/>
+      </svg>
+      <div class="ring-center">${p>=1?'✓':Math.round(p*100)+'%'}</div>
+    </div>
+    <div class="ring-label">${label}</div>
+    <div class="ring-value">${value}</div>
+  </div>`;
+}
+
+function renderHomeRings() {
+  const today = getTodayStr();
+  const goals  = getGoals();
+  const health = getHealthDay(today);
+  const logs   = getLogs();
+
+  const protein  = (health.proteinLog||[]).reduce((s,v)=>s+v,0);
+  const calories = (health.calorieLog||[]).reduce((s,v)=>s+v,0);
+  const sleep    = health.sleep || 0;
+  const hasWorkout = logs.some(l=>l.date===today && getWorkoutBlocks(l.workout).length>0);
+
+  const pGoal = goals.protein   || 150;
+  const cGoal = goals.calories  || 2500;
+  const sGoal = goals.sleep     || 8;
+
+  return `<div class="activity-rings">
+    ${buildRing('Protein',  protein/pGoal,  `${Math.round(protein)}/${pGoal}g`, '#22c55e')}
+    ${buildRing('Calories', calories/cGoal, `${Math.round(calories)}/${cGoal}`, '#f59e0b')}
+    ${buildRing('Sleep',    sleep/sGoal,    sleep?`${sleep}/${sGoal}h`:'—',    '#06b6d4')}
+    ${buildRing('Workout',  hasWorkout?1:0, hasWorkout?'Done!':'Rest',          '#6c63ff')}
   </div>`;
 }
 
@@ -344,6 +398,8 @@ function renderHome() {
       if (seen.has(key)) return false;
       seen.add(key); return true;
     });
+
+  document.getElementById('home-rings').innerHTML = renderHomeRings();
 
   const container = document.getElementById('home-feed');
   if (!combined.length) {
@@ -404,8 +460,9 @@ window.showUserProfile = function(userName, userColor) {
 let currentLogDate = getTodayStr();
 let blockCount = 0;
 
+const EXERCISES_SORTED = [...EXERCISES].sort((a,b)=>a.localeCompare(b));
 function buildExSelect(val='') {
-  return `<select class="ex-select">${EXERCISES.map(e=>`<option value="${e}"${e===val?' selected':''}>${e}</option>`).join('')}</select>`;
+  return `<select class="ex-select">${EXERCISES_SORTED.map(e=>`<option value="${e}"${e===val?' selected':''}>${e}</option>`).join('')}</select>`;
 }
 
 function addLiftRow(container, exercise='', sets=[{}]) {
@@ -541,12 +598,6 @@ function loadLogForDate(date) {
   currentLogDate = date;
   const existing = getLogs().find(l=>l.date===date);
 
-  const set = (id,val) => { const el=document.getElementById(id); if(el) el.value=val||''; };
-  set('log-bw',       existing?.bodyweight);
-  set('log-protein',  existing?.protein);
-  set('log-calories', existing?.calories);
-  set('log-sleep',    existing?.sleep);
-
   // Reset blocks
   document.getElementById('workout-blocks').innerHTML = '';
   blockCount = 0;
@@ -569,16 +620,6 @@ function renderLogDay(jumpToDate) {
     <div class="card" style="margin-bottom:10px">
       <label>Date</label>
       <input type="date" id="log-date" value="${currentLogDate}" max="${getTodayStr()}">
-    </div>
-
-    <div class="card">
-      <h2>Daily Stats</h2>
-      <div class="stats-grid">
-        <div><label>Bodyweight (lbs)</label><input id="log-bw"       type="number" placeholder="185"  inputmode="decimal"></div>
-        <div><label>Protein (g)</label>      <input id="log-protein"  type="number" placeholder="160"  inputmode="numeric"></div>
-        <div><label>Calories</label>          <input id="log-calories" type="number" placeholder="2400" inputmode="numeric"></div>
-        <div><label>Sleep (hrs)</label>        <input id="log-sleep"    type="number" placeholder="7.5"  inputmode="decimal" step="0.5"></div>
-      </div>
     </div>
 
     <div class="card">
@@ -617,12 +658,8 @@ function renderLogDay(jumpToDate) {
 function saveDay() {
   const logs = getLogs();
   const entry = {
-    date:       currentLogDate,
-    bodyweight: parseFloat(document.getElementById('log-bw')?.value)      || null,
-    protein:    parseFloat(document.getElementById('log-protein')?.value)  || null,
-    calories:   parseFloat(document.getElementById('log-calories')?.value) || null,
-    sleep:      parseFloat(document.getElementById('log-sleep')?.value)    || null,
-    workout:    { blocks: collectBlocks() },
+    date:    currentLogDate,
+    workout: { blocks: collectBlocks() },
   };
   const idx = logs.findIndex(l=>l.date===currentLogDate);
   if (idx>=0) logs[idx]=entry; else logs.push(entry);
@@ -771,9 +808,13 @@ function getMuscleSessionCounts() {
   const wl=logs.filter(l=>new Date(l.date)>=wa);
   const counts={};
   MUSCLE_GROUPS.forEach(m=>counts[m]=0);
-  wl.forEach(l=>getWorkoutBlocks(l.workout).forEach(b=>b.lifts?.forEach(lf=>{
-    (MUSCLE_MAP[lf.exercise]||[]).forEach(m=>{ if(counts[m]!==undefined) counts[m]++; });
-  })));
+  wl.forEach(l=>{
+    const dayMuscles=new Set();
+    getWorkoutBlocks(l.workout).forEach(b=>b.lifts?.forEach(lf=>{
+      (MUSCLE_MAP[lf.exercise]||[]).forEach(m=>dayMuscles.add(m));
+    }));
+    dayMuscles.forEach(m=>{ if(counts[m]!==undefined) counts[m]++; });
+  });
   return counts;
 }
 
@@ -974,6 +1015,108 @@ function renderMuscleMap() {
   }).join('');
 }
 
+// ── Health tab ────────────────────────────────────────────────────────────────
+function renderHealth() {
+  const today  = getTodayStr();
+  const health = getHealthDay(today);
+  const goals  = getGoals();
+  const pGoal  = goals.protein  || 150;
+  const cGoal  = goals.calories || 2500;
+  const sGoal  = goals.sleep    || 8;
+
+  const pLog = health.proteinLog  || [];
+  const cLog = health.calorieLog  || [];
+  const pTotal = pLog.reduce((s,v)=>s+v,0);
+  const cTotal = cLog.reduce((s,v)=>s+v,0);
+
+  const container = document.getElementById('tab-health');
+  container.innerHTML = `
+    <div class="top-bar"><h1 style="margin:0">Health</h1><div style="font-size:12px;color:var(--text2)">${fmtDateShort(today)}</div></div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h2 style="margin:0">🥩 Protein</h2>
+        <span style="font-size:13px;color:var(--green);font-weight:600">${Math.round(pTotal)} / ${pGoal}g</span>
+      </div>
+      <div class="health-log-list" id="protein-log-list">
+        ${pLog.map((v,i)=>`<div class="health-log-row"><span>${v}g</span><button class="btn btn-ghost btn-sm btn-icon" onclick="removeHealthEntry('protein',${i})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="number" id="protein-input" placeholder="e.g. 40" inputmode="numeric" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="addHealthEntry('protein')">+ Add</button>
+      </div>
+      <div class="health-total-bar" style="margin-top:10px">
+        <div class="health-total-fill" style="width:${Math.min(100,pTotal/pGoal*100).toFixed(1)}%;background:var(--green)"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h2 style="margin:0">🔥 Calories</h2>
+        <span style="font-size:13px;color:var(--amber);font-weight:600">${Math.round(cTotal)} / ${cGoal}</span>
+      </div>
+      <div class="health-log-list" id="calorie-log-list">
+        ${cLog.map((v,i)=>`<div class="health-log-row"><span>${v} cal</span><button class="btn btn-ghost btn-sm btn-icon" onclick="removeHealthEntry('calorie',${i})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="number" id="calorie-input" placeholder="e.g. 500" inputmode="numeric" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="addHealthEntry('calorie')">+ Add</button>
+      </div>
+      <div class="health-total-bar" style="margin-top:10px">
+        <div class="health-total-fill" style="width:${Math.min(100,cTotal/cGoal*100).toFixed(1)}%;background:var(--amber)"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Daily Metrics</h2>
+      <div class="stats-grid" style="margin-top:10px">
+        <div>
+          <label>Bodyweight (lbs)</label>
+          <input type="number" id="health-bw" placeholder="185" inputmode="decimal" value="${health.bodyweight||''}">
+        </div>
+        <div>
+          <label>Sleep last night (hrs)</label>
+          <input type="number" id="health-sleep" placeholder="${sGoal}" inputmode="decimal" step="0.5" value="${health.sleep||''}">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="width:100%;margin-top:12px" onclick="saveHealthMetrics()">Save</button>
+    </div>`;
+}
+
+window.addHealthEntry = type => {
+  const today  = getTodayStr();
+  const input  = document.getElementById(`${type}-input`);
+  const val    = parseFloat(input.value);
+  if (!val || val<=0) return;
+  const health = getHealthDay(today);
+  const key    = type==='protein' ? 'proteinLog' : 'calorieLog';
+  health[key]  = [...(health[key]||[]), val];
+  saveHealthDay(today, health);
+  input.value  = '';
+  renderHealth();
+  // refresh home rings
+  if (document.getElementById('tab-home').classList.contains('active')) renderHome();
+};
+
+window.removeHealthEntry = (type, idx) => {
+  const today  = getTodayStr();
+  const health = getHealthDay(today);
+  const key    = type==='protein' ? 'proteinLog' : 'calorieLog';
+  health[key]  = (health[key]||[]).filter((_,i)=>i!==idx);
+  saveHealthDay(today, health);
+  renderHealth();
+  if (document.getElementById('tab-home').classList.contains('active')) renderHome();
+};
+
+window.saveHealthMetrics = () => {
+  const today = getTodayStr();
+  const bw    = parseFloat(document.getElementById('health-bw')?.value)    || null;
+  const sleep = parseFloat(document.getElementById('health-sleep')?.value) || null;
+  saveHealthDay(today, { bodyweight: bw, sleep });
+  toast('Saved!');
+  if (document.getElementById('tab-home').classList.contains('active')) renderHome();
+};
+
 // ── Templates ─────────────────────────────────────────────────────────────────
 function renderTemplates() {
   const templates = getTemplates();
@@ -1038,7 +1181,7 @@ function buildTmplRow(ex='') {
   const val  = ex.exercise||ex||'';
   const sets = ex.sets||3;
   return `<div class="tmpl-ex-row" style="display:flex;gap:6px;align-items:center">
-    <select class="tmpl-ex-select" style="flex:1">${EXERCISES.map(e=>`<option value="${e}"${e===val?' selected':''}>${e}</option>`).join('')}</select>
+    <select class="tmpl-ex-select" style="flex:1">${EXERCISES_SORTED.map(e=>`<option value="${e}"${e===val?' selected':''}>${e}</option>`).join('')}</select>
     <input type="number" class="tmpl-sets-input" value="${sets}" min="1" max="10" style="width:48px;text-align:center" title="Sets">
     <span style="font-size:11px;color:var(--text2)">sets</span>
     <button class="btn btn-ghost btn-sm btn-icon" onclick="this.closest('.tmpl-ex-row').remove()">
@@ -1056,17 +1199,25 @@ function renderHistory() {
   }
   container.innerHTML=logs.map(log=>{
     const blocks=getWorkoutBlocks(log.workout);
+    const hDay=getHealthDay(log.date);
+    const protein=hDay.proteinLog?.reduce((s,v)=>s+v,0)||log.protein;
+    const calories=hDay.calorieLog?.reduce((s,v)=>s+v,0)||log.calories;
+    const bw=hDay.bodyweight||log.bodyweight;
+    const slp=hDay.sleep||log.sleep;
     const wStr=blocks.map(b=>b.type==='cardio'?`🏃 ${b.activity||'Cardio'}${b.distance?' · '+b.distance+' mi':''}`:`🏋️ ${b.lifts?.length||0} exercises`).join(' + ');
     return `<div class="history-card">
       <div class="history-header">
         <div><div class="history-date">${fmtDate(log.date)}</div>${wStr?`<div class="history-workout">${wStr}</div>`:''}</div>
-        <button class="btn btn-ghost btn-sm" onclick="editHistoryEntry('${log.date}')">Edit</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="editHistoryEntry('${log.date}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteHistoryEntry('${log.date}')">Delete</button>
+        </div>
       </div>
       <div class="history-chips">
-        ${log.bodyweight?`<span class="stat-chip">⚖️ ${log.bodyweight} lbs</span>`:''}
-        ${log.protein?`<span class="stat-chip">🥩 ${log.protein}g</span>`:''}
-        ${log.calories?`<span class="stat-chip">🔥 ${log.calories} cal</span>`:''}
-        ${log.sleep?`<span class="stat-chip">😴 ${log.sleep}h</span>`:''}
+        ${bw?`<span class="stat-chip">⚖️ ${bw} lbs</span>`:''}
+        ${protein?`<span class="stat-chip">🥩 ${Math.round(protein)}g</span>`:''}
+        ${calories?`<span class="stat-chip">🔥 ${Math.round(calories)} cal</span>`:''}
+        ${slp?`<span class="stat-chip">😴 ${slp}h</span>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1074,6 +1225,18 @@ function renderHistory() {
 window.editHistoryEntry = date => {
   showTab('log');
   setTimeout(()=>{ const dp=document.getElementById('log-date'); if(dp){dp.value=date; loadLogForDate(date);} }, 40);
+};
+window.deleteHistoryEntry = date => {
+  if (!confirm(`Delete workout entry for ${fmtDate(date)}?`)) return;
+  const logs = getLogs().filter(l=>l.date!==date);
+  setLogs(logs);
+  // resync leaderboard score after deletion
+  const profile=getProfile();
+  if (profile?.familyCode&&db) {
+    syncLeaderboardEntry(profile.familyCode,profile,calcPoints(logs,getGoals()),logs.filter(l=>getWorkoutBlocks(l.workout).length).length);
+  }
+  renderHistory();
+  toast('Entry deleted');
 };
 
 // ── Leaderboard ───────────────────────────────────────────────────────────────

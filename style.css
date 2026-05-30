@@ -477,3 +477,39 @@ input[type=date]::-webkit-calendar-picker-indicator { filter: invert(.6); cursor
 .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
 .badge-amber { background: rgba(245,158,11,.14); color: var(--amber); }
 .badge-gray  { background: var(--bg3); color: var(--text2); }
+
+/* ── Activity rings (home page) ───────────────────── */
+.activity-rings {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 10px; margin-bottom: 18px;
+}
+.activity-ring-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.ring-svg-wrap {
+  position: relative; width: 72px; height: 72px;
+}
+.ring-svg { width: 100%; height: 100%; }
+.ring-center {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--text);
+}
+.ring-label { font-size: 11px; font-weight: 600; color: var(--text2); }
+.ring-value { font-size: 10px; color: var(--text2); text-align: center; }
+.home-feed-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text2); margin-bottom: 10px;
+}
+
+/* ── Health tab ───────────────────────────────────── */
+.health-log-list { display: flex; flex-direction: column; gap: 4px; }
+.health-log-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg3); border-radius: 8px; padding: 6px 10px;
+  font-size: 14px;
+}
+.health-total-bar {
+  height: 6px; background: var(--bg3); border-radius: 99px; overflow: hidden;
+}
+.health-total-fill { height: 100%; border-radius: 99px; transition: width .4s; }
