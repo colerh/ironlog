@@ -13,15 +13,15 @@ const EXERCISES = [
   'Squat','Front Squat','Hack Squat','Leg Press','Leg Extension','Leg Curl',
   'Romanian Deadlift','Bulgarian Split Squat','Lunge','Step Up','Hip Thrust',
   'Bench Press','Incline Bench Press','Decline Bench Press','Close-Grip Bench',
-  'Dumbbell Press','Incline Dumbbell Press','Dumbbell Fly','Cable Fly','Push Up',
+  'Dumbbell Press','Incline Dumbbell Press','Dumbbell Fly','Dumbbell Pullover','Cable Fly','Push Up',
   'Deadlift','Sumo Deadlift','Trap Bar Deadlift',
   'Barbell Row','Pendlay Row','Cable Row','Chest-Supported Row',
   'Pull Up','Chin Up','Lat Pulldown','Single-Arm Row','Kroc Row',
   'Overhead Press','Push Press','Dumbbell Shoulder Press','Arnold Press',
   'Lateral Raise','Front Raise','Face Pull','Rear Delt Fly',
-  'Bicep Curl','Hammer Curl','Preacher Curl','EZ Bar Curl','Cable Curl',
+  'Bicep Curl','Hammer Curl','Preacher Curl','EZ Bar Curl','Cable Curl','Incline Dumbbell Curl',
   'Tricep Pushdown','Skull Crusher','Overhead Tricep Extension','Dips','Diamond Push Up',
-  'Calf Raise','Seated Calf Raise','Shrug','Power Clean','Plank','Ab Wheel','Crunch',
+  'Calf Raise','Seated Calf Raise','Shrug','Power Clean','Plank','Ab Wheel','Crunch','Hanging Leg Raise',
 ];
 
 const CARDIO_ACTIVITIES = ['Run','Bike','Swim','Row','Walk','Elliptical','Stair Climber'];
@@ -53,7 +53,8 @@ const MUSCLE_MAP = {
   'Overhead Tricep Extension':['Triceps'],'Dips':['Triceps','Chest'],
   'Diamond Push Up':['Triceps','Chest'],'Calf Raise':['Calves'],'Seated Calf Raise':['Calves'],
   'Shrug':['Traps'],'Power Clean':['Quads','Glutes','Traps','Lower Back'],
-  'Plank':['Core'],'Ab Wheel':['Core'],'Crunch':['Core'],
+  'Plank':['Core'],'Ab Wheel':['Core'],'Crunch':['Core'],'Hanging Leg Raise':['Core'],
+  'Dumbbell Pullover':['Back','Chest'],'Incline Dumbbell Curl':['Biceps'],
 };
 
 const MUSCLE_GROUPS = ['Chest','Front Delts','Side Delts','Rear Delts','Traps','Back','Lower Back','Biceps','Triceps','Quads','Hamstrings','Glutes','Calves','Core'];
@@ -476,7 +477,11 @@ function addWorkoutBlock(type, existing=null) {
       const tmpl = getTemplates().find(t=>t.id===tSel.value);
       if (!tmpl) return;
       div.querySelector('.lifts-list').innerHTML='';
-      tmpl.exercises.forEach(ex=>addLiftRow(div.querySelector('.lifts-list'),ex,[{}]));
+      tmpl.exercises.forEach(ex=>{
+        const name = ex.exercise||ex;
+        const sets = Array(ex.sets||1).fill({});
+        addLiftRow(div.querySelector('.lifts-list'), name, sets);
+      });
       tSel.value='';
     });
 
@@ -986,7 +991,7 @@ function renderTemplates() {
           <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}')">Delete</button>
         </div>
       </div>
-      <div class="template-exercises">${t.exercises.map(e=>`<span class="ex-chip">${e}</span>`).join('')}</div>
+      <div class="template-exercises">${t.exercises.map(e=>`<span class="ex-chip">${e.exercise||e} <span style="opacity:.6;font-size:10px">${e.sets||''}${e.sets?'×':''}</span></span>`).join('')}</div>
     </div>`).join('');
 }
 window.deleteTemplate = id => { setTemplates(getTemplates().filter(t=>t.id!==id)); renderTemplates(); toast('Deleted'); };
@@ -1017,7 +1022,10 @@ function openTemplateModal(existing=null) {
   overlay.querySelector('#tmpl-cancel').addEventListener('click',()=>overlay.remove());
   overlay.querySelector('#tmpl-save').addEventListener('click',()=>{
     const name=overlay.querySelector('#tmpl-name').value.trim(); if(!name) return;
-    const exercises=[...overlay.querySelectorAll('.tmpl-ex-select')].map(s=>s.value).filter(Boolean);
+    const exercises=[...overlay.querySelectorAll('.tmpl-ex-select')].map(s=>{
+      const row=s.closest('.tmpl-ex-row');
+      return { exercise: s.value, sets: parseInt(row?.querySelector('.tmpl-sets-input')?.value)||3 };
+    }).filter(e=>e.exercise);
     const ts=getTemplates();
     if(existing){ const i=ts.findIndex(t=>t.id===existing.id); if(i>=0) ts[i]={...existing,name,exercises}; }
     else ts.push({id:Date.now().toString(),name,exercises});
@@ -1026,10 +1034,14 @@ function openTemplateModal(existing=null) {
   document.body.appendChild(overlay);
   overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
 }
-function buildTmplRow(val='') {
-  return `<div style="display:flex;gap:6px;align-items:center">
+function buildTmplRow(ex='') {
+  const val  = ex.exercise||ex||'';
+  const sets = ex.sets||3;
+  return `<div class="tmpl-ex-row" style="display:flex;gap:6px;align-items:center">
     <select class="tmpl-ex-select" style="flex:1">${EXERCISES.map(e=>`<option value="${e}"${e===val?' selected':''}>${e}</option>`).join('')}</select>
-    <button class="btn btn-ghost btn-sm btn-icon" onclick="this.closest('div').remove()">
+    <input type="number" class="tmpl-sets-input" value="${sets}" min="1" max="10" style="width:48px;text-align:center" title="Sets">
+    <span style="font-size:11px;color:var(--text2)">sets</span>
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="this.closest('.tmpl-ex-row').remove()">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button></div>`;
 }
@@ -1089,10 +1101,84 @@ function renderLbRows(members) {
     </div>`).join('');
 }
 
+// ── Template seeding ──────────────────────────────────────────────────────────
+function seedDefaultTemplates() {
+  if (ls.get('ironlog_templates_seeded')) return;
+  const defaults = [
+    {
+      id: 'tpl-push', name: 'Push',
+      exercises: [
+        { exercise: 'Bench Press',               sets: 4 },
+        { exercise: 'Incline Dumbbell Press',     sets: 3 },
+        { exercise: 'Cable Fly',                  sets: 3 },
+        { exercise: 'Lateral Raise',              sets: 4 },
+        { exercise: 'Dumbbell Shoulder Press',    sets: 3 },
+        { exercise: 'Tricep Pushdown',            sets: 3 },
+        { exercise: 'Overhead Tricep Extension',  sets: 3 },
+      ],
+    },
+    {
+      id: 'tpl-pull', name: 'Pull',
+      exercises: [
+        { exercise: 'Chest-Supported Row',    sets: 4 },
+        { exercise: 'Lat Pulldown',           sets: 4 },
+        { exercise: 'Single-Arm Row',         sets: 3 },
+        { exercise: 'Dumbbell Pullover',      sets: 3 },
+        { exercise: 'Face Pull',              sets: 4 },
+        { exercise: 'EZ Bar Curl',            sets: 3 },
+        { exercise: 'Incline Dumbbell Curl',  sets: 3 },
+        { exercise: 'Crunch',                 sets: 3 },
+      ],
+    },
+    {
+      id: 'tpl-legs', name: 'Legs',
+      exercises: [],
+    },
+    {
+      id: 'tpl-upper', name: 'Upper',
+      exercises: [
+        { exercise: 'Incline Bench Press',  sets: 3 },
+        { exercise: 'Cable Fly',            sets: 3 },
+        { exercise: 'Cable Row',            sets: 3 },
+        { exercise: 'Lat Pulldown',         sets: 3 },
+        { exercise: 'Lateral Raise',        sets: 4 },
+        { exercise: 'Rear Delt Fly',        sets: 3 },
+        { exercise: 'Hammer Curl',          sets: 3 },
+        { exercise: 'Skull Crusher',        sets: 3 },
+      ],
+    },
+    {
+      id: 'tpl-lower', name: 'Lower',
+      exercises: [
+        { exercise: 'Leg Curl',              sets: 4 },
+        { exercise: 'Romanian Deadlift',     sets: 4 },
+        { exercise: 'Hack Squat',            sets: 3 },
+        { exercise: 'Bulgarian Split Squat', sets: 3 },
+        { exercise: 'Seated Calf Raise',     sets: 4 },
+        { exercise: 'Hanging Leg Raise',     sets: 3 },
+      ],
+    },
+  ];
+  defaults[2].exercises = [
+    { exercise: 'Leg Curl',             sets: 3 },
+    { exercise: 'Squat',                sets: 4 },
+    { exercise: 'Leg Press',            sets: 3 },
+    { exercise: 'Romanian Deadlift',    sets: 3 },
+    { exercise: 'Lunge',                sets: 3 },
+    { exercise: 'Calf Raise',           sets: 4 },
+  ];
+  const existing = getTemplates();
+  const existingIds = new Set(existing.map(t=>t.id));
+  const toAdd = defaults.filter(t=>!existingIds.has(t.id));
+  if (toAdd.length) setTemplates([...existing, ...toAdd]);
+  ls.set('ironlog_templates_seeded', true);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 function initApp() {
   const profile = getProfile();
 
+  seedDefaultTemplates();
   renderLogDay();
   renderTemplates();
 
