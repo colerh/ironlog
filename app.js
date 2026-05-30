@@ -790,8 +790,8 @@ function initBodyCharts() {
   try {
     frontEl.innerHTML = '';
     backEl.innerHTML  = '';
-    _frontChart = new BodyChart(frontEl, { side: ViewSide.FRONT });
-    _backChart  = new BodyChart(backEl,  { side: ViewSide.BACK  });
+    _frontChart = new BodyChart(frontEl, { view: ViewSide.FRONT, bodyState: {} });
+    _backChart  = new BodyChart(backEl,  { view: ViewSide.BACK,  bodyState: {} });
   } catch(e) { console.warn('BodyChart init:', e); }
 }
 
@@ -800,7 +800,9 @@ function buildBodyState(counts) {
   MUSCLE_GROUPS.forEach(group => {
     const intensity = counts[group] >= 2 ? 8 : counts[group] === 1 ? 4 : 0;
     (MUSCLE_ID_MAP[group] || []).forEach(id => {
-      if (state[id] === undefined || intensity > state[id]) state[id] = intensity;
+      if (state[id] === undefined || intensity > state[id]) {
+        state[id] = { intensity, selected: false };
+      }
     });
   });
   return state;
@@ -950,8 +952,8 @@ function renderMuscleMap() {
   if (!_frontChart || !_backChart) initBodyCharts();
   if (_frontChart && _backChart) {
     const bodyState = buildBodyState(counts);
-    _frontChart.update(bodyState);
-    _backChart.update(bodyState);
+    _frontChart.update({ bodyState });
+    _backChart.update({ bodyState });
   }
 
   document.getElementById('muscle-grid').innerHTML = MUSCLE_GROUPS.map(m => {
