@@ -1132,6 +1132,9 @@ function initApp() {
   if(profile.familyCode&&db){
     subscribeLeaderboard(profile.familyCode,members=>{ leaderboardData=members; renderLeaderboard(); });
     subscribeToFeed(profile.familyCode, items=>{ remoteFeedData=items; renderHome(); });
+    // Push current score so new members see us immediately on join
+    const logs=getLogs();
+    syncLeaderboardEntry(profile.familyCode,profile,calcPoints(logs,getGoals()),logs.filter(l=>getWorkoutBlocks(l.workout).length).length);
   }
 
   showTab('home');
