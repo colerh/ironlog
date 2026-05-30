@@ -60,19 +60,19 @@ const MUSCLE_GROUPS = ['Chest','Front Delts','Side Delts','Rear Delts','Traps','
 
 const MUSCLE_ID_MAP = {
   'Chest':       ['chest-upper-left','chest-upper-right','chest-lower-left','chest-lower-right'],
-  'Front Delts': ['deltoid-anterior-left','deltoid-anterior-right'],
-  'Side Delts':  ['deltoid-anterior-left','deltoid-anterior-right'],
-  'Rear Delts':  ['deltoid-posterior-left','deltoid-posterior-right'],
-  'Traps':       ['trapezius-upper-left','trapezius-upper-right'],
-  'Back':        ['latissimus-dorsi-left','latissimus-dorsi-right'],
-  'Lower Back':  ['latissimus-dorsi-left','latissimus-dorsi-right'],
+  'Front Delts': ['shoulder-front-left','shoulder-front-right','shoulder-side-left','shoulder-side-right'],
+  'Side Delts':  ['shoulder-side-left','shoulder-side-right'],
+  'Rear Delts':  ['deltoid-rear-left','deltoid-rear-right'],
+  'Traps':       ['traps-upper-left','traps-upper-right','traps-mid-left','traps-mid-right','traps-lower-left','traps-lower-right'],
+  'Back':        ['lats-upper-left','lats-upper-right','lats-mid-left','lats-mid-right','lats-lower-left','lats-lower-right'],
+  'Lower Back':  ['lower-back-erectors-left','lower-back-erectors-right','lower-back-ql-left','lower-back-ql-right'],
   'Biceps':      ['biceps-left','biceps-right'],
-  'Triceps':     ['triceps-left','triceps-right'],
-  'Core':        ['rectus-abdominis','obliques-left','obliques-right'],
-  'Glutes':      ['gluteus-maximus-left','gluteus-maximus-right'],
-  'Quads':       ['quadriceps-left','quadriceps-right'],
-  'Hamstrings':  ['hamstrings-left','hamstrings-right'],
-  'Calves':      ['gastrocnemius-left','gastrocnemius-right'],
+  'Triceps':     ['triceps-long-left','triceps-long-right','triceps-lateral-left','triceps-lateral-right'],
+  'Core':        ['abs-upper-left','abs-upper-right','abs-lower-left','abs-lower-right','obliques-left','obliques-right'],
+  'Glutes':      ['gluteus-maximus-left','gluteus-maximus-right','gluteus-medius-left','gluteus-medius-right'],
+  'Quads':       ['quads-left','quads-right'],
+  'Hamstrings':  ['hamstrings-medial-left','hamstrings-medial-right','hamstrings-lateral-left','hamstrings-lateral-right'],
+  'Calves':      ['calves-gastroc-medial-left','calves-gastroc-medial-right','calves-gastroc-lateral-left','calves-gastroc-lateral-right'],
 };
 
 const COLORS = ['#6c63ff','#ec4899','#f59e0b','#22c55e','#06b6d4','#ef4444','#8b5cf6','#f97316'];
@@ -954,6 +954,13 @@ function renderMuscleMap() {
     const bodyState = buildBodyState(counts);
     _frontChart.update({ bodyState });
     _backChart.update({ bodyState });
+    // Override library colors with green/yellow per design
+    Object.entries(bodyState).forEach(([id, { intensity }]) => {
+      const color = intensity >= 8 ? '#22c55e' : intensity >= 4 ? '#f59e0b' : null;
+      if (!color) return;
+      const path = _frontChart.musclePaths.get(id) || _backChart.musclePaths.get(id);
+      if (path) { path.setAttribute('fill', color); path.style.fillOpacity = '1'; }
+    });
   }
 
   document.getElementById('muscle-grid').innerHTML = MUSCLE_GROUPS.map(m => {
