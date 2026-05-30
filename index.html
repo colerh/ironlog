@@ -43,6 +43,10 @@
         <div class="menu-item-icon">🏆</div>
         <div class="menu-item-label">Leaderboard</div>
       </div>
+      <div class="menu-item" data-tab="spire">
+        <div class="menu-item-icon">⚔️</div>
+        <div class="menu-item-label">Spire</div>
+      </div>
     </div>
     <button class="btn btn-ghost" style="width:100%" onclick="document.getElementById('menu-overlay').classList.remove('open')">Close</button>
   </div>
@@ -168,6 +172,9 @@
       </div>
     </div>
 
+    <!-- Spire of Iron -->
+    <div id="tab-spire" class="tab-content"></div>
+
     <!-- History -->
     <div id="tab-history" class="tab-content">
       <div class="top-bar"><h1 style="margin:0">History</h1></div>
@@ -238,6 +245,7 @@
 </nav>
 
 <script src="/app.js"></script>
+<script src="/spire.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('new-template-btn')

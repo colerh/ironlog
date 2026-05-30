@@ -241,6 +241,7 @@ function showTab(id) {
   document.getElementById('menu-overlay')?.classList.remove('open');
   if (id==='home')        renderHome();
   if (id==='health')      renderHealth();
+  if (id==='spire')       renderSpire();
   if (id==='progress')    renderProgress();
   if (id==='muscle')      renderMuscleMap();
   if (id==='goals')       renderGoals();
@@ -673,6 +674,14 @@ function saveDay() {
     const code     = profile.familyCode;
     syncLeaderboardEntry(code, profile, score, workouts);
     if (entry.workout.blocks.length) pushWorkoutToFeed(code, profile, entry);
+  }
+  // Trigger Spire reward if run is active
+  const allExercises = entry.workout.blocks
+    .filter(b=>b.type==='weights')
+    .flatMap(b=>b.lifts?.map(l=>l.exercise)||[]);
+  if (allExercises.length && typeof spireOnWorkoutSaved === 'function') {
+    spireOnWorkoutSaved(allExercises);
+    showTab('spire');
   }
   // refresh home if visible
   if (document.getElementById('tab-home').classList.contains('active')) renderHome();
