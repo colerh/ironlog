@@ -8,6 +8,27 @@ const FIREBASE_CONFIG = {
   appId: "1:877808551901:web:b74e623dc05c32e94bd834",
 };
 
+// ── Icon system (Lucide, MIT) ─────────────────────────────────────────────────
+const IC = {
+  dumbbell:    '<path d="M6 5v14"/><path d="M18 5v14"/><path d="M2 9h4"/><path d="M2 15h4"/><path d="M18 9h4"/><path d="M18 15h4"/><path d="M4 5h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M16 5h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>',
+  activity:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  flame:       '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  moon:        '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+  scale:       '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21H17"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+  egg:         '<path d="M12 22c6.23-.05 7.87-5.57 7.5-10-.36-4.34-3.95-9.96-7.5-10-3.55.04-7.14 5.66-7.5 10-.37 4.43 1.27 9.95 7.5 10z"/>',
+  trophy:      '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>',
+  target:      '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  clock:       '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  'bar-chart': '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  'file-text': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  zap:         '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  medal:       '<path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/>',
+  run:         '<path d="M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M7.7 10.7 10 8l3 1 1.4 3.5"/><path d="m6 20 3-4 2 1 2-3.5"/><path d="M6 12h2l2-4"/>',
+};
+function svgI(name, size=16, cls='') {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon${cls?' '+cls:''}" aria-hidden="true">${IC[name]||''}</svg>`;
+}
+
 // ── Exercises & muscle data ───────────────────────────────────────────────────
 const EXERCISES = [
   'Squat','Front Squat','Hack Squat','Leg Press','Leg Extension','Leg Curl',
@@ -258,7 +279,7 @@ function renderOnboarding() {
   let selectedColor = COLORS[0];
   box.innerHTML = `
     <div class="onboarding-box">
-      <div class="logo-big">🏋️</div>
+      <div class="logo-big">${svgI('dumbbell',48)}</div>
       <h1>Welcome to IronLog</h1>
       <p>Your personal strength &amp; health tracker.</p>
       <label>Your name</label>
@@ -289,10 +310,10 @@ function buildFeedEntry(item) {
   const blockHtml = (item.blocks||[]).map(b => {
     if (b.type==='cardio') {
       const detail = [b.activity, b.distance?b.distance+' mi':'', b.time?b.time:''].filter(Boolean).join(' · ');
-      return `<div class="feed-block"><div class="feed-block-title">🏃 Cardio</div><div class="feed-block-detail">${detail}</div></div>`;
+      return `<div class="feed-block"><div class="feed-block-title">${svgI('activity',14)} Cardio</div><div class="feed-block-detail">${detail}</div></div>`;
     }
     const exList = (b.exercises||[]).join(', ') + (b.exerciseCount>(b.exercises?.length||0) ? '…' : '');
-    return `<div class="feed-block"><div class="feed-block-title">🏋️ Weights · ${b.exerciseCount} exercise${b.exerciseCount!==1?'s':''}</div><div class="feed-block-detail">${exList}</div></div>`;
+    return `<div class="feed-block"><div class="feed-block-title">${svgI('dumbbell',14)} Weights · ${b.exerciseCount} exercise${b.exerciseCount!==1?'s':''}</div><div class="feed-block-detail">${exList}</div></div>`;
   }).join('');
 
   const stats = item.stats||{};
@@ -303,10 +324,10 @@ function buildFeedEntry(item) {
   const bw       = hDay.bodyweight || stats.bodyweight;
   const sleep    = hDay.sleep      || stats.sleep;
   const statChips = [
-    bw      ? `<span class="stat-chip">⚖️ ${bw} lbs</span>` : '',
-    protein  ? `<span class="stat-chip">🥩 ${Math.round(protein)}g</span>` : '',
-    calories ? `<span class="stat-chip">🔥 ${Math.round(calories)} cal</span>` : '',
-    sleep    ? `<span class="stat-chip">😴 ${sleep}h</span>` : '',
+    bw      ? `<span class="stat-chip">${svgI('scale',12)} ${bw} lbs</span>` : '',
+    protein  ? `<span class="stat-chip">${svgI('egg',12)} ${Math.round(protein)}g</span>` : '',
+    calories ? `<span class="stat-chip">${svgI('flame',12)} ${Math.round(calories)} cal</span>` : '',
+    sleep    ? `<span class="stat-chip">${svgI('moon',12)} ${sleep}h</span>` : '',
   ].filter(Boolean).join('');
 
   const dateStr = item.date ? fmtDateShort(item.date) : '';
@@ -513,7 +534,7 @@ function addWorkoutBlock(type, existing=null) {
     const templates = getTemplates();
     div.innerHTML = `
       <div class="workout-block-header">
-        <span class="workout-block-label">🏋️ Weights</span>
+        <span class="workout-block-label">${svgI('dumbbell',15)} Weights</span>
         <div style="display:flex;gap:6px;align-items:center">
           ${templates.length?`<select class="tmpl-sel" style="width:auto;min-width:120px">
             <option value="">Template…</option>
@@ -549,7 +570,7 @@ function addWorkoutBlock(type, existing=null) {
   } else {
     div.innerHTML = `
       <div class="workout-block-header">
-        <span class="workout-block-label">🏃 Cardio</span>
+        <span class="workout-block-label">${svgI('activity',15)} Cardio</span>
         <button class="btn btn-ghost btn-sm btn-icon remove-block">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -664,7 +685,7 @@ function saveDay() {
   const idx = logs.findIndex(l=>l.date===currentLogDate);
   if (idx>=0) logs[idx]=entry; else logs.push(entry);
   setLogs(logs);
-  toast('Day saved! 💪');
+  toast('Day saved!');
 
   const profile = getProfile();
   if (profile) {
@@ -712,7 +733,7 @@ function renderProgress() {
 
   document.getElementById('progress-charts').innerHTML = `
     ${fastest?`<div class="card"><div class="stat-highlight">
-      <div class="stat-highlight-icon">🏃</div>
+      <div class="stat-highlight-icon">${svgI('activity',22)}</div>
       <div><div class="stat-highlight-val">${fastest.pace} /mi</div>
       <div class="stat-highlight-sub">Fastest mile · ${fmtDate(fastest.date)}</div></div>
     </div></div>`:''}
@@ -1035,7 +1056,7 @@ function renderHealth() {
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">🥩 Protein</h2>
+        <h2 style="margin:0">${svgI('egg',18)} Protein</h2>
         <span style="font-size:13px;color:var(--green);font-weight:600">${Math.round(pTotal)} / ${pGoal}g</span>
       </div>
       <div class="health-log-list" id="protein-log-list">
@@ -1052,7 +1073,7 @@ function renderHealth() {
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">🔥 Calories</h2>
+        <h2 style="margin:0">${svgI('flame',18)} Calories</h2>
         <span style="font-size:13px;color:var(--amber);font-weight:600">${Math.round(cTotal)} / ${cGoal}</span>
       </div>
       <div class="health-log-list" id="calorie-log-list">
@@ -1204,7 +1225,7 @@ function renderHistory() {
     const calories=hDay.calorieLog?.reduce((s,v)=>s+v,0)||log.calories;
     const bw=hDay.bodyweight||log.bodyweight;
     const slp=hDay.sleep||log.sleep;
-    const wStr=blocks.map(b=>b.type==='cardio'?`🏃 ${b.activity||'Cardio'}${b.distance?' · '+b.distance+' mi':''}`:`🏋️ ${b.lifts?.length||0} exercises`).join(' + ');
+    const wStr=blocks.map(b=>b.type==='cardio'?`${svgI('activity',13)} ${b.activity||'Cardio'}${b.distance?' · '+b.distance+' mi':''}`:`${svgI('dumbbell',13)} ${b.lifts?.length||0} exercises`).join(' + ');
     return `<div class="history-card">
       <div class="history-header">
         <div><div class="history-date">${fmtDate(log.date)}</div>${wStr?`<div class="history-workout">${wStr}</div>`:''}</div>
@@ -1214,10 +1235,10 @@ function renderHistory() {
         </div>
       </div>
       <div class="history-chips">
-        ${bw?`<span class="stat-chip">⚖️ ${bw} lbs</span>`:''}
-        ${protein?`<span class="stat-chip">🥩 ${Math.round(protein)}g</span>`:''}
-        ${calories?`<span class="stat-chip">🔥 ${Math.round(calories)} cal</span>`:''}
-        ${slp?`<span class="stat-chip">😴 ${slp}h</span>`:''}
+        ${bw?`<span class="stat-chip">${svgI('scale',12)} ${bw} lbs</span>`:''}
+        ${protein?`<span class="stat-chip">${svgI('egg',12)} ${Math.round(protein)}g</span>`:''}
+        ${calories?`<span class="stat-chip">${svgI('flame',12)} ${Math.round(calories)} cal</span>`:''}
+        ${slp?`<span class="stat-chip">${svgI('moon',12)} ${slp}h</span>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1251,7 +1272,7 @@ function renderLeaderboard() {
 }
 function renderLbRows(members) {
   const sorted=[...members].sort((a,b)=>b.score-a.score);
-  const ranks=['🥇','🥈','🥉'];
+  const ranks=['1','2','3'];
   document.getElementById('lb-list').innerHTML=sorted.map((m,i)=>`
     <div class="lb-row">
       <div class="lb-rank">${ranks[i]||i+1}</div>
