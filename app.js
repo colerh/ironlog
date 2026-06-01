@@ -25,8 +25,8 @@ const IC = {
   medal:       '<path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/>',
   run:         '<path d="M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M7.7 10.7 10 8l3 1 1.4 3.5"/><path d="m6 20 3-4 2 1 2-3.5"/><path d="M6 12h2l2-4"/>',
 };
-function svgI(name, size=16, cls='') {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon${cls?' '+cls:''}" aria-hidden="true">${IC[name]||''}</svg>`;
+function svgI(name, size=16, color='currentColor') {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true">${IC[name]||''}</svg>`;
 }
 
 // ── Exercises & muscle data ───────────────────────────────────────────────────
@@ -279,7 +279,7 @@ function renderOnboarding() {
   let selectedColor = COLORS[0];
   box.innerHTML = `
     <div class="onboarding-box">
-      <div class="logo-big">${svgI('dumbbell',48)}</div>
+      <div class="logo-big">${svgI('dumbbell',48,'#6c63ff')}</div>
       <h1>Welcome to IronLog</h1>
       <p>Your personal strength &amp; health tracker.</p>
       <label>Your name</label>
@@ -310,10 +310,10 @@ function buildFeedEntry(item) {
   const blockHtml = (item.blocks||[]).map(b => {
     if (b.type==='cardio') {
       const detail = [b.activity, b.distance?b.distance+' mi':'', b.time?b.time:''].filter(Boolean).join(' · ');
-      return `<div class="feed-block"><div class="feed-block-title">${svgI('activity',14)} Cardio</div><div class="feed-block-detail">${detail}</div></div>`;
+      return `<div class="feed-block"><div class="feed-block-title">${svgI('activity',14,'#22c55e')} Cardio</div><div class="feed-block-detail">${detail}</div></div>`;
     }
     const exList = (b.exercises||[]).join(', ') + (b.exerciseCount>(b.exercises?.length||0) ? '…' : '');
-    return `<div class="feed-block"><div class="feed-block-title">${svgI('dumbbell',14)} Weights · ${b.exerciseCount} exercise${b.exerciseCount!==1?'s':''}</div><div class="feed-block-detail">${exList}</div></div>`;
+    return `<div class="feed-block"><div class="feed-block-title">${svgI('dumbbell',14,'#6c63ff')} Weights · ${b.exerciseCount} exercise${b.exerciseCount!==1?'s':''}</div><div class="feed-block-detail">${exList}</div></div>`;
   }).join('');
 
   const stats = item.stats||{};
@@ -324,10 +324,10 @@ function buildFeedEntry(item) {
   const bw       = hDay.bodyweight || stats.bodyweight;
   const sleep    = hDay.sleep      || stats.sleep;
   const statChips = [
-    bw      ? `<span class="stat-chip">${svgI('scale',12)} ${bw} lbs</span>` : '',
-    protein  ? `<span class="stat-chip">${svgI('egg',12)} ${Math.round(protein)}g</span>` : '',
-    calories ? `<span class="stat-chip">${svgI('flame',12)} ${Math.round(calories)} cal</span>` : '',
-    sleep    ? `<span class="stat-chip">${svgI('moon',12)} ${sleep}h</span>` : '',
+    bw      ? `<span class="stat-chip">${svgI('scale',12,'#60a5fa')} ${bw} lbs</span>` : '',
+    protein  ? `<span class="stat-chip">${svgI('egg',12,'#22c55e')} ${Math.round(protein)}g</span>` : '',
+    calories ? `<span class="stat-chip">${svgI('flame',12,'#f59e0b')} ${Math.round(calories)} cal</span>` : '',
+    sleep    ? `<span class="stat-chip">${svgI('moon',12,'#818cf8')} ${sleep}h</span>` : '',
   ].filter(Boolean).join('');
 
   const dateStr = item.date ? fmtDateShort(item.date) : '';
@@ -534,7 +534,7 @@ function addWorkoutBlock(type, existing=null) {
     const templates = getTemplates();
     div.innerHTML = `
       <div class="workout-block-header">
-        <span class="workout-block-label">${svgI('dumbbell',15)} Weights</span>
+        <span class="workout-block-label">${svgI('dumbbell',15,'#6c63ff')} Weights</span>
         <div style="display:flex;gap:6px;align-items:center">
           ${templates.length?`<select class="tmpl-sel" style="width:auto;min-width:120px">
             <option value="">Template…</option>
@@ -570,7 +570,7 @@ function addWorkoutBlock(type, existing=null) {
   } else {
     div.innerHTML = `
       <div class="workout-block-header">
-        <span class="workout-block-label">${svgI('activity',15)} Cardio</span>
+        <span class="workout-block-label">${svgI('activity',15,'#22c55e')} Cardio</span>
         <button class="btn btn-ghost btn-sm btn-icon remove-block">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -733,7 +733,7 @@ function renderProgress() {
 
   document.getElementById('progress-charts').innerHTML = `
     ${fastest?`<div class="card"><div class="stat-highlight">
-      <div class="stat-highlight-icon">${svgI('activity',22)}</div>
+      <div class="stat-highlight-icon">${svgI('activity',22,'#22c55e')}</div>
       <div><div class="stat-highlight-val">${fastest.pace} /mi</div>
       <div class="stat-highlight-sub">Fastest mile · ${fmtDate(fastest.date)}</div></div>
     </div></div>`:''}
@@ -1056,7 +1056,7 @@ function renderHealth() {
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">${svgI('egg',18)} Protein</h2>
+        <h2 style="margin:0">${svgI('egg',18,'#22c55e')} Protein</h2>
         <span style="font-size:13px;color:var(--green);font-weight:600">${Math.round(pTotal)} / ${pGoal}g</span>
       </div>
       <div class="health-log-list" id="protein-log-list">
@@ -1073,7 +1073,7 @@ function renderHealth() {
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">${svgI('flame',18)} Calories</h2>
+        <h2 style="margin:0">${svgI('flame',18,'#f59e0b')} Calories</h2>
         <span style="font-size:13px;color:var(--amber);font-weight:600">${Math.round(cTotal)} / ${cGoal}</span>
       </div>
       <div class="health-log-list" id="calorie-log-list">
@@ -1225,7 +1225,7 @@ function renderHistory() {
     const calories=hDay.calorieLog?.reduce((s,v)=>s+v,0)||log.calories;
     const bw=hDay.bodyweight||log.bodyweight;
     const slp=hDay.sleep||log.sleep;
-    const wStr=blocks.map(b=>b.type==='cardio'?`${svgI('activity',13)} ${b.activity||'Cardio'}${b.distance?' · '+b.distance+' mi':''}`:`${svgI('dumbbell',13)} ${b.lifts?.length||0} exercises`).join(' + ');
+    const wStr=blocks.map(b=>b.type==='cardio'?`${svgI('activity',13,'#22c55e')} ${b.activity||'Cardio'}${b.distance?' · '+b.distance+' mi':''}`:`${svgI('dumbbell',13,'#6c63ff')} ${b.lifts?.length||0} exercises`).join(' + ');
     return `<div class="history-card">
       <div class="history-header">
         <div><div class="history-date">${fmtDate(log.date)}</div>${wStr?`<div class="history-workout">${wStr}</div>`:''}</div>
@@ -1235,10 +1235,10 @@ function renderHistory() {
         </div>
       </div>
       <div class="history-chips">
-        ${bw?`<span class="stat-chip">${svgI('scale',12)} ${bw} lbs</span>`:''}
-        ${protein?`<span class="stat-chip">${svgI('egg',12)} ${Math.round(protein)}g</span>`:''}
-        ${calories?`<span class="stat-chip">${svgI('flame',12)} ${Math.round(calories)} cal</span>`:''}
-        ${slp?`<span class="stat-chip">${svgI('moon',12)} ${slp}h</span>`:''}
+        ${bw?`<span class="stat-chip">${svgI('scale',12,'#60a5fa')} ${bw} lbs</span>`:''}
+        ${protein?`<span class="stat-chip">${svgI('egg',12,'#22c55e')} ${Math.round(protein)}g</span>`:''}
+        ${calories?`<span class="stat-chip">${svgI('flame',12,'#f59e0b')} ${Math.round(calories)} cal</span>`:''}
+        ${slp?`<span class="stat-chip">${svgI('moon',12,'#818cf8')} ${slp}h</span>`:''}
       </div>
     </div>`;
   }).join('');
