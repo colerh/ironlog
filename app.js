@@ -325,8 +325,8 @@ function buildFeedEntry(item) {
   const sleep    = hDay.sleep      || stats.sleep;
   const statChips = [
     bw      ? `<span class="stat-chip">${svgI('scale',12,'#60a5fa')} ${bw} lbs</span>` : '',
-    protein  ? `<span class="stat-chip">${svgI('egg',12,'#22c55e')} ${Math.round(protein)}g</span>` : '',
-    calories ? `<span class="stat-chip">${svgI('flame',12,'#f59e0b')} ${Math.round(calories)} cal</span>` : '',
+    protein  ? `<span class="stat-chip">🥩 ${Math.round(protein)}g</span>` : '',
+    calories ? `<span class="stat-chip">🔥 ${Math.round(calories)} cal</span>` : '',
     sleep    ? `<span class="stat-chip">${svgI('moon',12,'#818cf8')} ${sleep}h</span>` : '',
   ].filter(Boolean).join('');
 
@@ -1056,7 +1056,7 @@ function renderHealth() {
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">${svgI('egg',18,'#22c55e')} Protein</h2>
+        <h2 style="margin:0">🥩 Protein</h2>
         <span style="font-size:13px;color:var(--green);font-weight:600">${Math.round(pTotal)} / ${pGoal}g</span>
       </div>
       <div class="health-log-list" id="protein-log-list">
@@ -1073,7 +1073,7 @@ function renderHealth() {
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">${svgI('flame',18,'#f59e0b')} Calories</h2>
+        <h2 style="margin:0">🔥 Calories</h2>
         <span style="font-size:13px;color:var(--amber);font-weight:600">${Math.round(cTotal)} / ${cGoal}</span>
       </div>
       <div class="health-log-list" id="calorie-log-list">
@@ -1236,8 +1236,8 @@ function renderHistory() {
       </div>
       <div class="history-chips">
         ${bw?`<span class="stat-chip">${svgI('scale',12,'#60a5fa')} ${bw} lbs</span>`:''}
-        ${protein?`<span class="stat-chip">${svgI('egg',12,'#22c55e')} ${Math.round(protein)}g</span>`:''}
-        ${calories?`<span class="stat-chip">${svgI('flame',12,'#f59e0b')} ${Math.round(calories)} cal</span>`:''}
+        ${protein?`<span class="stat-chip">🥩 ${Math.round(protein)}g</span>`:''}
+        ${calories?`<span class="stat-chip">🔥 ${Math.round(calories)} cal</span>`:''}
         ${slp?`<span class="stat-chip">${svgI('moon',12,'#818cf8')} ${slp}h</span>`:''}
       </div>
     </div>`;
