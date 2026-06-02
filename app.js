@@ -119,7 +119,10 @@ const saveHealthDay = (date, data) => {
   const h=getHealthLog(); h[date]={ ...(h[date]||{}), ...data }; setHealthLog(h);
 };
 
-function getTodayStr() { return new Date().toISOString().slice(0,10); }
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function fmtDate(str) {
   return new Date(str+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
@@ -261,7 +264,7 @@ function showTab(id) {
   // close menu overlay if open
   document.getElementById('menu-overlay')?.classList.remove('open');
   if (id==='home')        renderHome();
-  if (id==='health')      renderHealth();
+  if (id==='health')      { healthViewDate = getTodayStr(); renderHealth(); }
   if (id==='progress')    renderProgress();
   if (id==='muscle')      renderMuscleMap();
   if (id==='goals')       renderGoals();
@@ -480,6 +483,13 @@ window.showUserProfile = function(userName, userColor) {
 // ── Log Day ───────────────────────────────────────────────────────────────────
 let currentLogDate = getTodayStr();
 let blockCount = 0;
+
+// ── Health view date (separate from workout log date) ─────────────────────────
+let healthViewDate = getTodayStr();
+
+// Normalise a health log entry — old format was plain numbers, new is {value, note}
+const entryVal  = e => (typeof e === 'object' && e !== null) ? (e.value || 0) : (e || 0);
+const entryNote = e => (typeof e === 'object' && e !== null) ? (e.note  || '') : '';
 
 const EXERCISES_SORTED = [...EXERCISES].sort((a,b)=>a.localeCompare(b));
 function buildExSelect(val='') {
@@ -1037,37 +1047,65 @@ function renderMuscleMap() {
 }
 
 // ── Health tab ────────────────────────────────────────────────────────────────
+const X_BTN = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+function renderHealthLogRows(entries, type) {
+  return entries.map((e,i) => {
+    const val  = entryVal(e);
+    const note = entryNote(e);
+    const unit = type==='protein' ? 'g' : ' cal';
+    return `<div class="health-log-row">
+      <span class="health-log-note">${note || '<span style="opacity:.4">—</span>'}</span>
+      <span class="health-log-val">${val}${unit}</span>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="removeHealthEntry('${type}',${i})">${X_BTN}</button>
+    </div>`;
+  }).join('');
+}
+
 function renderHealth() {
   const today  = getTodayStr();
-  const health = getHealthDay(today);
+  const isToday = healthViewDate === today;
+  const health = getHealthDay(healthViewDate);
   const goals  = getGoals();
   const pGoal  = goals.protein  || 150;
   const cGoal  = goals.calories || 2500;
   const sGoal  = goals.sleep    || 8;
 
-  const pLog = health.proteinLog  || [];
-  const cLog = health.calorieLog  || [];
-  const pTotal = pLog.reduce((s,v)=>s+v,0);
-  const cTotal = cLog.reduce((s,v)=>s+v,0);
+  const pLog   = health.proteinLog || [];
+  const cLog   = health.calorieLog || [];
+  const pTotal = pLog.reduce((s,e)=>s+entryVal(e),0);
+  const cTotal = cLog.reduce((s,e)=>s+entryVal(e),0);
+
+  const dateLabel = isToday ? `Today · ${fmtDateShort(healthViewDate)}` : fmtDate(healthViewDate);
 
   const container = document.getElementById('tab-health');
   container.innerHTML = `
-    <div class="top-bar"><h1 style="margin:0">Health</h1><div style="font-size:12px;color:var(--text2)">${fmtDateShort(today)}</div></div>
+    <div class="top-bar">
+      <h1 style="margin:0">Health</h1>
+      <div class="health-date-nav">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="shiftHealthDate(-1)" title="Previous day">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="health-date-label">${dateLabel}</span>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="shiftHealthDate(1)" title="Next day" ${isToday?'disabled':''}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <h2 style="margin:0">🥩 Protein</h2>
         <span style="font-size:13px;color:var(--green);font-weight:600">${Math.round(pTotal)} / ${pGoal}g</span>
       </div>
-      <div class="health-log-list" id="protein-log-list">
-        ${pLog.map((v,i)=>`<div class="health-log-row"><span>${v}g</span><button class="btn btn-ghost btn-sm btn-icon" onclick="removeHealthEntry('protein',${i})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input type="number" id="protein-input" placeholder="e.g. 40" inputmode="numeric" style="flex:1">
+      <div class="health-log-list">${renderHealthLogRows(pLog,'protein')}</div>
+      ${isToday?`<div class="health-add-row" style="margin-top:8px">
+        <input type="text" id="protein-note" placeholder="Label (e.g. Protein bar)" style="flex:2;min-width:0">
+        <input type="number" id="protein-input" placeholder="g" inputmode="numeric" style="flex:1;min-width:60px;max-width:80px">
         <button class="btn btn-primary btn-sm" onclick="addHealthEntry('protein')">+ Add</button>
-      </div>
+      </div>`:''}
       <div class="health-total-bar" style="margin-top:10px">
-        <div class="health-total-fill" style="width:${Math.min(100,pTotal/pGoal*100).toFixed(1)}%;background:var(--green)"></div>
+        <div class="health-total-fill" style="width:${Math.min(100,pGoal?pTotal/pGoal*100:0).toFixed(1)}%;background:var(--green)"></div>
       </div>
     </div>
 
@@ -1076,15 +1114,14 @@ function renderHealth() {
         <h2 style="margin:0">🔥 Calories</h2>
         <span style="font-size:13px;color:var(--amber);font-weight:600">${Math.round(cTotal)} / ${cGoal}</span>
       </div>
-      <div class="health-log-list" id="calorie-log-list">
-        ${cLog.map((v,i)=>`<div class="health-log-row"><span>${v} cal</span><button class="btn btn-ghost btn-sm btn-icon" onclick="removeHealthEntry('calorie',${i})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input type="number" id="calorie-input" placeholder="e.g. 500" inputmode="numeric" style="flex:1">
+      <div class="health-log-list">${renderHealthLogRows(cLog,'calorie')}</div>
+      ${isToday?`<div class="health-add-row" style="margin-top:8px">
+        <input type="text" id="calorie-note" placeholder="Label (e.g. Chicken & rice)" style="flex:2;min-width:0">
+        <input type="number" id="calorie-input" placeholder="cal" inputmode="numeric" style="flex:1;min-width:60px;max-width:80px">
         <button class="btn btn-primary btn-sm" onclick="addHealthEntry('calorie')">+ Add</button>
-      </div>
+      </div>`:''}
       <div class="health-total-bar" style="margin-top:10px">
-        <div class="health-total-fill" style="width:${Math.min(100,cTotal/cGoal*100).toFixed(1)}%;background:var(--amber)"></div>
+        <div class="health-total-fill" style="width:${Math.min(100,cGoal?cTotal/cGoal*100:0).toFixed(1)}%;background:var(--amber)"></div>
       </div>
     </div>
 
@@ -1093,47 +1130,55 @@ function renderHealth() {
       <div class="stats-grid" style="margin-top:10px">
         <div>
           <label>Bodyweight (lbs)</label>
-          <input type="number" id="health-bw" placeholder="185" inputmode="decimal" value="${health.bodyweight||''}">
+          <input type="number" id="health-bw" placeholder="185" inputmode="decimal" value="${health.bodyweight||''}" ${isToday?'':'readonly'}>
         </div>
         <div>
           <label>Sleep last night (hrs)</label>
-          <input type="number" id="health-sleep" placeholder="${sGoal}" inputmode="decimal" step="0.5" value="${health.sleep||''}">
+          <input type="number" id="health-sleep" placeholder="${sGoal}" inputmode="decimal" step="0.5" value="${health.sleep||''}" ${isToday?'':'readonly'}>
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" style="width:100%;margin-top:12px" onclick="saveHealthMetrics()">Save</button>
+      ${isToday?`<button class="btn btn-primary btn-sm" style="width:100%;margin-top:12px" onclick="saveHealthMetrics()">Save</button>`:''}
     </div>`;
 }
 
+window.shiftHealthDate = delta => {
+  const d = new Date(healthViewDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  const shifted = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if (shifted > getTodayStr()) return;
+  healthViewDate = shifted;
+  renderHealth();
+};
+
 window.addHealthEntry = type => {
-  const today  = getTodayStr();
+  const noteEl = document.getElementById(`${type}-note`);
   const input  = document.getElementById(`${type}-input`);
   const val    = parseFloat(input.value);
-  if (!val || val<=0) return;
-  const health = getHealthDay(today);
+  if (!val || val<=0) { input.focus(); return; }
+  const note   = noteEl?.value.trim() || '';
+  const health = getHealthDay(healthViewDate);
   const key    = type==='protein' ? 'proteinLog' : 'calorieLog';
-  health[key]  = [...(health[key]||[]), val];
-  saveHealthDay(today, health);
-  input.value  = '';
+  health[key]  = [...(health[key]||[]), note ? { value: val, note } : val];
+  saveHealthDay(healthViewDate, health);
+  input.value = '';
+  if (noteEl) noteEl.value = '';
   renderHealth();
-  // refresh home rings
   if (document.getElementById('tab-home').classList.contains('active')) renderHome();
 };
 
 window.removeHealthEntry = (type, idx) => {
-  const today  = getTodayStr();
-  const health = getHealthDay(today);
+  const health = getHealthDay(healthViewDate);
   const key    = type==='protein' ? 'proteinLog' : 'calorieLog';
   health[key]  = (health[key]||[]).filter((_,i)=>i!==idx);
-  saveHealthDay(today, health);
+  saveHealthDay(healthViewDate, health);
   renderHealth();
   if (document.getElementById('tab-home').classList.contains('active')) renderHome();
 };
 
 window.saveHealthMetrics = () => {
-  const today = getTodayStr();
   const bw    = parseFloat(document.getElementById('health-bw')?.value)    || null;
   const sleep = parseFloat(document.getElementById('health-sleep')?.value) || null;
-  saveHealthDay(today, { bodyweight: bw, sleep });
+  saveHealthDay(healthViewDate, { bodyweight: bw, sleep });
   toast('Saved!');
   if (document.getElementById('tab-home').classList.contains('active')) renderHome();
 };
