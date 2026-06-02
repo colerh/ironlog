@@ -320,12 +320,10 @@ function buildFeedEntry(item) {
   }).join('');
 
   const stats = item.stats||{};
-  // also pull from health log if available (for local user entries)
-  const hDay = item.date ? getHealthDay(item.date) : {};
-  const protein  = hDay.proteinLog?.reduce((s,v)=>s+v,0) || stats.protein;
-  const calories = hDay.calorieLog?.reduce((s,v)=>s+v,0) || stats.calories;
-  const bw       = hDay.bodyweight || stats.bodyweight;
-  const sleep    = hDay.sleep      || stats.sleep;
+  const hDay  = item.date ? getHealthDay(item.date) : {};
+  const { protein, calories } = item.date ? getDayTotals(item.date) : { protein: stats.protein||0, calories: stats.calories||0 };
+  const bw    = hDay.bodyweight || stats.bodyweight;
+  const sleep = hDay.sleep      || stats.sleep;
   const statChips = [
     bw      ? `<span class="stat-chip">${svgI('scale',12,'#60a5fa')} ${bw} lbs</span>` : '',
     protein  ? `<span class="stat-chip">🥩 ${Math.round(protein)}g</span>` : '',
@@ -375,8 +373,7 @@ function renderHomeRings() {
   const health = getHealthDay(today);
   const logs   = getLogs();
 
-  const protein  = (health.proteinLog||[]).reduce((s,v)=>s+v,0);
-  const calories = (health.calorieLog||[]).reduce((s,v)=>s+v,0);
+  const { protein, calories } = getDayTotals(today);
   const sleep    = health.sleep || 0;
   const hasWorkout = logs.some(l=>l.date===today && getWorkoutBlocks(l.workout).length>0);
 
@@ -490,6 +487,22 @@ let healthViewDate = getTodayStr();
 // Normalise a health log entry — old format was plain numbers, new is {value, note}
 const entryVal  = e => (typeof e === 'object' && e !== null) ? (e.value || 0) : (e || 0);
 const entryNote = e => (typeof e === 'object' && e !== null) ? (e.note  || '') : '';
+
+// Get protein+calorie totals for a day, handling all storage formats
+function getDayTotals(date) {
+  const h = getHealthDay(date);
+  if (h.foodLog) {
+    return {
+      protein:  h.foodLog.reduce((s,e) => s + (e.protein  || 0), 0),
+      calories: h.foodLog.reduce((s,e) => s + (e.calories || 0), 0),
+    };
+  }
+  // Legacy separate logs
+  return {
+    protein:  (h.proteinLog  || []).reduce((s,e) => s + entryVal(e), 0),
+    calories: (h.calorieLog  || []).reduce((s,e) => s + entryVal(e), 0),
+  };
+}
 
 const EXERCISES_SORTED = [...EXERCISES].sort((a,b)=>a.localeCompare(b));
 function buildExSelect(val='') {
@@ -1049,34 +1062,38 @@ function renderMuscleMap() {
 // ── Health tab ────────────────────────────────────────────────────────────────
 const X_BTN = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
-function renderHealthLogRows(entries, type) {
-  return entries.map((e,i) => {
-    const val  = entryVal(e);
-    const note = entryNote(e);
-    const unit = type==='protein' ? 'g' : ' cal';
-    return `<div class="health-log-row">
-      <span class="health-log-note">${note || '<span style="opacity:.4">—</span>'}</span>
-      <span class="health-log-val">${val}${unit}</span>
-      <button class="btn btn-ghost btn-sm btn-icon" onclick="removeHealthEntry('${type}',${i})">${X_BTN}</button>
-    </div>`;
-  }).join('');
+// Returns the unified food log array for a health-day object.
+// New format: foodLog: [{note, calories, protein}]
+// Legacy compat: merges old proteinLog / calorieLog arrays.
+function getFoodLog(health) {
+  if (health.foodLog) return health.foodLog;
+  const pLog = (health.proteinLog || []).map(e => ({ note: entryNote(e), protein: entryVal(e), calories: 0 }));
+  const cLog = (health.calorieLog || []).map(e => ({ note: entryNote(e), calories: entryVal(e), protein: 0 }));
+  return [...pLog, ...cLog];
 }
 
 function renderHealth() {
-  const today  = getTodayStr();
+  const today   = getTodayStr();
   const isToday = healthViewDate === today;
-  const health = getHealthDay(healthViewDate);
-  const goals  = getGoals();
-  const pGoal  = goals.protein  || 150;
-  const cGoal  = goals.calories || 2500;
-  const sGoal  = goals.sleep    || 8;
+  const health  = getHealthDay(healthViewDate);
+  const goals   = getGoals();
+  const pGoal   = goals.protein  || 150;
+  const cGoal   = goals.calories || 2500;
+  const sGoal   = goals.sleep    || 8;
 
-  const pLog   = health.proteinLog || [];
-  const cLog   = health.calorieLog || [];
-  const pTotal = pLog.reduce((s,e)=>s+entryVal(e),0);
-  const cTotal = cLog.reduce((s,e)=>s+entryVal(e),0);
+  const foodLog  = getFoodLog(health);
+  const pTotal   = foodLog.reduce((s,e) => s + (e.protein  || 0), 0);
+  const cTotal   = foodLog.reduce((s,e) => s + (e.calories || 0), 0);
 
   const dateLabel = isToday ? `Today · ${fmtDateShort(healthViewDate)}` : fmtDate(healthViewDate);
+
+  const foodRows = foodLog.map((e, i) => `
+    <div class="health-log-row">
+      <span class="health-log-note">${e.note || '<span style="opacity:.35">—</span>'}</span>
+      <span class="health-log-cal">${e.calories ? Math.round(e.calories)+' cal' : '—'}</span>
+      <span class="health-log-pro">${e.protein  ? Math.round(e.protein)+'g'    : '—'}</span>
+      ${isToday ? `<button class="btn btn-ghost btn-sm btn-icon" onclick="removeFoodEntry(${i})">${X_BTN}</button>` : ''}
+    </div>`).join('');
 
   const container = document.getElementById('tab-health');
   container.innerHTML = `
@@ -1094,35 +1111,31 @@ function renderHealth() {
     </div>
 
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">🥩 Protein</h2>
-        <span style="font-size:13px;color:var(--green);font-weight:600">${Math.round(pTotal)} / ${pGoal}g</span>
+      <div class="health-totals-row">
+        <div><span class="health-total-label">🔥 Calories</span><span class="health-total-val" style="color:var(--amber)">${Math.round(cTotal)} <span style="opacity:.5;font-size:11px">/ ${cGoal}</span></span></div>
+        <div style="width:1px;background:var(--border);align-self:stretch"></div>
+        <div><span class="health-total-label">🥩 Protein</span><span class="health-total-val" style="color:var(--green)">${Math.round(pTotal)}g <span style="opacity:.5;font-size:11px">/ ${pGoal}g</span></span></div>
       </div>
-      <div class="health-log-list">${renderHealthLogRows(pLog,'protein')}</div>
-      ${isToday?`<div class="health-add-row" style="margin-top:8px">
-        <input type="text" id="protein-note" placeholder="Label (e.g. Protein bar)" style="flex:2;min-width:0">
-        <input type="number" id="protein-input" placeholder="g" inputmode="numeric" style="flex:1;min-width:60px;max-width:80px">
-        <button class="btn btn-primary btn-sm" onclick="addHealthEntry('protein')">+ Add</button>
-      </div>`:''}
-      <div class="health-total-bar" style="margin-top:10px">
-        <div class="health-total-fill" style="width:${Math.min(100,pGoal?pTotal/pGoal*100:0).toFixed(1)}%;background:var(--green)"></div>
+      <div class="health-bars-row">
+        <div class="health-total-bar" style="flex:1">
+          <div class="health-total-fill" style="width:${Math.min(100,cGoal?cTotal/cGoal*100:0).toFixed(1)}%;background:var(--amber)"></div>
+        </div>
+        <div class="health-total-bar" style="flex:1">
+          <div class="health-total-fill" style="width:${Math.min(100,pGoal?pTotal/pGoal*100:0).toFixed(1)}%;background:var(--green)"></div>
+        </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h2 style="margin:0">🔥 Calories</h2>
-        <span style="font-size:13px;color:var(--amber);font-weight:600">${Math.round(cTotal)} / ${cGoal}</span>
+      <div class="health-log-header ${isToday?'':'no-del'}">
+        <span>Description</span><span>Calories</span><span>Protein</span>${isToday?'<span></span>':''}
       </div>
-      <div class="health-log-list">${renderHealthLogRows(cLog,'calorie')}</div>
-      ${isToday?`<div class="health-add-row" style="margin-top:8px">
-        <input type="text" id="calorie-note" placeholder="Label (e.g. Chicken & rice)" style="flex:2;min-width:0">
-        <input type="number" id="calorie-input" placeholder="cal" inputmode="numeric" style="flex:1;min-width:60px;max-width:80px">
-        <button class="btn btn-primary btn-sm" onclick="addHealthEntry('calorie')">+ Add</button>
-      </div>`:''}
-      <div class="health-total-bar" style="margin-top:10px">
-        <div class="health-total-fill" style="width:${Math.min(100,cGoal?cTotal/cGoal*100:0).toFixed(1)}%;background:var(--amber)"></div>
-      </div>
+      <div class="health-log-list ${isToday?'':'no-del'}">${foodRows || '<div style="color:var(--text2);font-size:13px;padding:8px 0">No entries yet.</div>'}</div>
+
+      ${isToday ? `<div class="health-add-row" style="margin-top:10px">
+        <input type="text"   id="food-note" placeholder="Description" style="flex:2;min-width:0">
+        <input type="number" id="food-cal"  placeholder="cal" inputmode="numeric" style="width:64px;flex-shrink:0">
+        <input type="number" id="food-pro"  placeholder="g"   inputmode="numeric" style="width:56px;flex-shrink:0">
+        <button class="btn btn-primary btn-sm" onclick="addFoodEntry()">+ Add</button>
+      </div>` : ''}
     </div>
 
     <div class="card">
@@ -1150,26 +1163,29 @@ window.shiftHealthDate = delta => {
   renderHealth();
 };
 
-window.addHealthEntry = type => {
-  const noteEl = document.getElementById(`${type}-note`);
-  const input  = document.getElementById(`${type}-input`);
-  const val    = parseFloat(input.value);
-  if (!val || val<=0) { input.focus(); return; }
-  const note   = noteEl?.value.trim() || '';
+window.addFoodEntry = () => {
+  const noteEl = document.getElementById('food-note');
+  const calEl  = document.getElementById('food-cal');
+  const proEl  = document.getElementById('food-pro');
+  const cal    = parseFloat(calEl.value) || 0;
+  const pro    = parseFloat(proEl.value) || 0;
+  if (!cal && !pro) { calEl.focus(); return; }
   const health = getHealthDay(healthViewDate);
-  const key    = type==='protein' ? 'proteinLog' : 'calorieLog';
-  health[key]  = [...(health[key]||[]), note ? { value: val, note } : val];
+  health.foodLog = [...getFoodLog(health), { note: noteEl.value.trim(), calories: cal, protein: pro }];
+  // Clear old-format keys so we don't double-count
+  delete health.proteinLog; delete health.calorieLog;
   saveHealthDay(healthViewDate, health);
-  input.value = '';
-  if (noteEl) noteEl.value = '';
+  noteEl.value = ''; calEl.value = ''; proEl.value = '';
   renderHealth();
   if (document.getElementById('tab-home').classList.contains('active')) renderHome();
 };
 
-window.removeHealthEntry = (type, idx) => {
+window.removeFoodEntry = idx => {
   const health = getHealthDay(healthViewDate);
-  const key    = type==='protein' ? 'proteinLog' : 'calorieLog';
-  health[key]  = (health[key]||[]).filter((_,i)=>i!==idx);
+  const log = getFoodLog(health);
+  log.splice(idx, 1);
+  health.foodLog = log;
+  delete health.proteinLog; delete health.calorieLog;
   saveHealthDay(healthViewDate, health);
   renderHealth();
   if (document.getElementById('tab-home').classList.contains('active')) renderHome();
@@ -1266,8 +1282,7 @@ function renderHistory() {
   container.innerHTML=logs.map(log=>{
     const blocks=getWorkoutBlocks(log.workout);
     const hDay=getHealthDay(log.date);
-    const protein=hDay.proteinLog?.reduce((s,v)=>s+v,0)||log.protein;
-    const calories=hDay.calorieLog?.reduce((s,v)=>s+v,0)||log.calories;
+    const { protein, calories } = getDayTotals(log.date);
     const bw=hDay.bodyweight||log.bodyweight;
     const slp=hDay.sleep||log.sleep;
     const wStr=blocks.map(b=>b.type==='cardio'?`${svgI('activity',13,'#22c55e')} ${b.activity||'Cardio'}${b.distance?' · '+b.distance+' mi':''}`:`${svgI('dumbbell',13,'#6c63ff')} ${b.lifts?.length||0} exercises`).join(' + ');

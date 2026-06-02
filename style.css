@@ -507,18 +507,35 @@ svg.icon { display:inline-block; vertical-align:-3px; flex-shrink:0; }
 }
 
 /* ── Health tab ───────────────────────────────────── */
-.health-log-list { display: flex; flex-direction: column; gap: 4px; }
-.health-log-row {
-  display: grid; grid-template-columns: 1fr auto auto;
-  align-items: center; gap: 10px;
-  background: var(--bg3); border-radius: 8px; padding: 7px 10px;
-  font-size: 14px;
+.health-totals-row {
+  display: flex; gap: 0; margin-bottom: 10px;
+  background: var(--bg3); border-radius: 10px; overflow: hidden;
 }
-.health-log-note { color: var(--text2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.health-log-val  { font-weight: 600; font-size: 13px; white-space: nowrap; text-align: right; }
-.health-add-row  { display: flex; gap: 6px; align-items: center; }
-.health-total-bar { height: 6px; background: var(--bg3); border-radius: 99px; overflow: hidden; }
-.health-total-fill { height: 100%; border-radius: 99px; transition: width .4s; }
+.health-totals-row > div { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; }
+.health-total-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text2); }
+.health-total-val   { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.health-bars-row    { display: flex; gap: 6px; margin-bottom: 14px; }
+.health-total-bar   { height: 5px; background: var(--bg3); border-radius: 99px; overflow: hidden; }
+.health-total-fill  { height: 100%; border-radius: 99px; transition: width .4s; }
+
+.health-log-header {
+  display: grid; grid-template-columns: 1fr 72px 60px 28px;
+  padding: 0 10px 4px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--text2);
+}
+.health-log-header.no-del { grid-template-columns: 1fr 72px 60px; }
+.health-log-list { display: flex; flex-direction: column; gap: 4px; }
+.health-log-list.no-del .health-log-row { grid-template-columns: 1fr 72px 60px; }
+.health-log-row  {
+  display: grid; grid-template-columns: 1fr 72px 60px 28px;
+  align-items: center; gap: 4px;
+  background: var(--bg3); border-radius: 8px; padding: 7px 10px;
+}
+.health-log-note { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.health-log-cal  { font-size: 13px; font-weight: 600; color: var(--amber); text-align: right; }
+.health-log-pro  { font-size: 13px; font-weight: 600; color: var(--green); text-align: right; }
+.health-add-row  { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.health-add-row input { min-width: 0; }
 
 /* ── Health date nav ──────────────────────────────── */
 .health-date-nav { display: flex; align-items: center; gap: 4px; }
