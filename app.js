@@ -104,7 +104,16 @@ const ls = {
   get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set: (k,v) => localStorage.setItem(k, JSON.stringify(v)),
 };
-const getProfile   = () => ls.get('ironlog_profile');
+const getLogDraft  = () => ls.get('ironlog_log_draft') || {};
+const setLogDraft  = v  => ls.set('ironlog_log_draft', v);
+const clearLogDraft = () => localStorage.removeItem('ironlog_log_draft');
+
+// Exercises where bodyweight is a valid weight option
+const BW_EXERCISES = new Set([
+  'Push Up','Pull Up','Chin Up','Dips','Diamond Push Up',
+  'Hanging Leg Raise','Ab Wheel','Plank',
+]);
+
 const setProfile   = p  => ls.set('ironlog_profile', p);
 const getLogs      = () => ls.get('ironlog_logs') || [];
 const setLogs      = v  => ls.set('ironlog_logs', v);
@@ -315,7 +324,7 @@ function buildFeedEntry(item) {
       const detail = [b.activity, b.distance?b.distance+' mi':'', b.time?b.time:''].filter(Boolean).join(' · ');
       return `<div class="feed-block"><div class="feed-block-title">${svgI('activity',14,'#22c55e')} Cardio</div><div class="feed-block-detail">${detail}</div></div>`;
     }
-    const exList = (b.exercises||[]).join(', ') + (b.exerciseCount>(b.exercises?.length||0) ? '…' : '');
+    const exList = (b.exercises||[]).join(', ');
     return `<div class="feed-block"><div class="feed-block-title">${svgI('dumbbell',14,'#6c63ff')} Weights · ${b.exerciseCount} exercise${b.exerciseCount!==1?'s':''}</div><div class="feed-block-detail">${exList}</div></div>`;
   }).join('');
 
@@ -404,7 +413,7 @@ function renderHome() {
       date:      l.date,
       blocks:    getWorkoutBlocks(l.workout).map(b => b.type==='cardio'
         ? { type:'cardio', activity:b.activity, distance:b.distance, time:b.time }
-        : { type:'weights', exerciseCount:b.lifts?.length||0, exercises:b.lifts?.slice(0,3).map(x=>x.exercise)||[] }
+        : { type:'weights', exerciseCount:b.lifts?.length||0, exercises:b.lifts?.map(x=>x.exercise)||[] }
       ),
       stats: { bodyweight:l.bodyweight, protein:l.protein, calories:l.calories, sleep:l.sleep },
       savedAt: new Date(l.date+'T12:00:00').getTime(),
@@ -522,24 +531,67 @@ function addLiftRow(container, exercise='', sets=[{}]) {
     <div class="set-rows"></div>
     <button class="btn btn-ghost btn-sm add-set" style="width:100%;margin-top:4px">+ Add Set</button>`;
   card.querySelector('.remove-lift').addEventListener('click', ()=>card.remove());
-  card.querySelector('.add-set').addEventListener('click', ()=>addSetRow(card.querySelector('.set-rows')));
-  sets.forEach(s=>addSetRow(card.querySelector('.set-rows'), s));
+
+  const exSel = card.querySelector('.ex-select');
+  const setRows = card.querySelector('.set-rows');
+
+  // When exercise changes, toggle BW checkboxes visibility
+  exSel.addEventListener('change', () => {
+    const isBW = BW_EXERCISES.has(exSel.value);
+    setRows.querySelectorAll('.set-group').forEach(g => {
+      const bwCheck = g.querySelector('.bw-check');
+      const wtInput = g.querySelector('.set-weight');
+      if (isBW && !wtInput.value) { bwCheck.checked = true; wtInput.style.display = 'none'; }
+    });
+    g_card_bw(card, isBW);
+  });
+
+  card.querySelector('.add-set').addEventListener('click', () => {
+    addSetRow(setRows, {}, BW_EXERCISES.has(exSel.value));
+  });
+
+  const isBW = BW_EXERCISES.has(exercise);
+  sets.forEach(s => addSetRow(setRows, s, isBW));
   container.appendChild(card);
 }
 
-function addSetRow(container, {weight='',reps='',notes=''}={}) {
+function g_card_bw(card, isBW) {
+  // Show/hide BW label on existing set rows when exercise changes
+  card.querySelectorAll('.bw-label').forEach(lbl => {
+    lbl.style.display = isBW || true ? '' : 'none';
+  });
+}
+
+function buildWeightInput(weight, isBW) {
+  // isBW: true = bodyweight exercise; weight may be 'BW' or a number
+  const bwChecked = (isBW || weight === 'BW') ? 'checked' : '';
+  const numVal = (weight && weight !== 'BW') ? weight : '';
+  return `<label class="bw-label" title="Bodyweight">
+    <input type="checkbox" class="bw-check" ${bwChecked}> BW
+  </label>
+  <input type="number" placeholder="lbs" value="${numVal}" class="set-weight" min="0" inputmode="decimal"
+    style="${bwChecked ? 'display:none' : ''}">`;
+}
+
+function addSetRow(container, {weight='',reps='',notes=''}={}, exerciseIsBW=false) {
   const n = container.querySelectorAll('.set-group').length+1;
   const g = document.createElement('div'); g.className='set-group';
   g.innerHTML = `
     <div class="set-row">
       <span class="set-num">S${n}</span>
-      <input type="number" placeholder="lbs"  value="${weight}" class="set-weight" min="0" inputmode="decimal">
-      <input type="number" placeholder="reps" value="${reps}"   class="set-reps"   min="0" inputmode="numeric">
+      ${buildWeightInput(weight, exerciseIsBW && !weight)}
+      <input type="number" placeholder="reps" value="${reps}" class="set-reps" min="0" inputmode="numeric">
       <button class="btn btn-ghost btn-icon btn-sm remove-set">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <input type="text" class="set-notes-input" placeholder="Notes (optional)" value="${notes}">`;
+  const bwCheck = g.querySelector('.bw-check');
+  const wtInput = g.querySelector('.set-weight');
+  bwCheck.addEventListener('change', () => {
+    wtInput.style.display = bwCheck.checked ? 'none' : '';
+    if (bwCheck.checked) wtInput.value = '';
+  });
   g.querySelector('.remove-set').addEventListener('click', ()=>{
     g.remove();
     container.querySelectorAll('.set-num').forEach((el,i)=>el.textContent=`S${i+1}`);
@@ -621,7 +673,7 @@ function collectBlocks() {
         lifts: Array.from(div.querySelectorAll('.lift-card')).map(card => ({
           exercise: card.querySelector('.ex-select').value,
           sets: Array.from(card.querySelectorAll('.set-group')).map(g=>({
-            weight: g.querySelector('.set-weight').value,
+            weight: g.querySelector('.bw-check')?.checked ? 'BW' : g.querySelector('.set-weight').value,
             reps:   g.querySelector('.set-reps').value,
             notes:  g.querySelector('.set-notes-input').value,
           })),
@@ -638,18 +690,31 @@ function collectBlocks() {
   });
 }
 
+let _autoSaveTimer = null;
+function scheduleAutoSave() {
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    const blocks = collectBlocks();
+    if (blocks.length) {
+      setLogDraft({ date: currentLogDate, blocks });
+    } else {
+      clearLogDraft();
+    }
+  }, 600);
+}
+
 function loadLogForDate(date) {
   currentLogDate = date;
-  const existing = getLogs().find(l=>l.date===date);
-
-  // Reset blocks
   document.getElementById('workout-blocks').innerHTML = '';
   blockCount = 0;
 
-  const blocks = getWorkoutBlocks(existing?.workout);
-  if (blocks.length) {
-    blocks.forEach(b => addWorkoutBlock(b.type, b));
-  }
+  // Prefer saved draft for today, else use confirmed log
+  const today = getTodayStr();
+  const draft = getLogDraft();
+  const hasDraft = date === today && draft?.date === today && draft?.blocks?.length;
+  const existing = getLogs().find(l=>l.date===date);
+  const blocks = hasDraft ? draft.blocks : getWorkoutBlocks(existing?.workout);
+  if (blocks.length) blocks.forEach(b => addWorkoutBlock(b.type, b));
 }
 
 function renderLogDay(jumpToDate) {
@@ -692,9 +757,12 @@ function renderLogDay(jumpToDate) {
   });
 
   document.getElementById('log-date').addEventListener('change', e=>loadLogForDate(e.target.value));
-  document.getElementById('add-weights-btn').addEventListener('click', ()=>addWorkoutBlock('weights'));
-  document.getElementById('add-cardio-btn').addEventListener('click', ()=>addWorkoutBlock('cardio'));
+  document.getElementById('add-weights-btn').addEventListener('click', ()=>{ addWorkoutBlock('weights'); scheduleAutoSave(); });
+  document.getElementById('add-cardio-btn').addEventListener('click', ()=>{ addWorkoutBlock('cardio'); scheduleAutoSave(); });
   document.getElementById('save-log-btn').addEventListener('click', saveDay);
+  // Auto-save draft on any input within the log tab
+  document.getElementById('tab-log').addEventListener('input', scheduleAutoSave);
+  document.getElementById('tab-log').addEventListener('change', scheduleAutoSave);
 
   loadLogForDate(currentLogDate);
 }
@@ -708,6 +776,7 @@ function saveDay() {
   const idx = logs.findIndex(l=>l.date===currentLogDate);
   if (idx>=0) logs[idx]=entry; else logs.push(entry);
   setLogs(logs);
+  clearLogDraft();
   toast('Day saved!');
 
   const profile = getProfile();

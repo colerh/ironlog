@@ -317,6 +317,12 @@ svg.icon { display:inline-block; vertical-align:-3px; flex-shrink:0; }
   display: grid; grid-template-columns: 28px 1fr 1fr 36px;
   gap: 6px; align-items: center; margin-bottom: 3px;
 }
+.bw-label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  cursor: pointer; white-space: nowrap;
+}
+.bw-label input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; margin: 0; }
 .set-num { font-size: 10px; font-weight: 700; color: var(--text2); text-align: center; text-transform: uppercase; }
 .set-notes-input {
   width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border);
