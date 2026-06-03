@@ -114,6 +114,7 @@ const BW_EXERCISES = new Set([
   'Hanging Leg Raise','Ab Wheel','Plank',
 ]);
 
+const getProfile   = () => ls.get('ironlog_profile');
 const setProfile   = p  => ls.set('ironlog_profile', p);
 const getLogs      = () => ls.get('ironlog_logs') || [];
 const setLogs      = v  => ls.set('ironlog_logs', v);
