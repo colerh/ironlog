@@ -314,25 +314,27 @@ svg.icon { display:inline-block; vertical-align:-3px; flex-shrink:0; }
 .lift-header select { flex: 1; }
 .set-group { margin-bottom: 8px; }
 .set-row {
-  display: grid; grid-template-columns: 28px 1fr 1fr 36px;
+  display: grid; grid-template-columns: 28px 1fr 28px 1fr;
   gap: 6px; align-items: center; margin-bottom: 3px;
 }
-/* BW weight cell — same grid footprint as a plain input */
+/* BW weight cell — occupies the same single grid column as a plain lbs input */
 .weight-cell-bw {
-  display: flex; align-items: center; gap: 5px; min-width: 0;
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-  padding: 0 8px; height: 36px;
+  display: flex; align-items: center; gap: 4px; min-width: 0;
 }
-.weight-cell-bw .set-weight {
-  border: none; background: transparent; padding: 0; min-height: unset;
-  height: auto; width: 52px; flex-shrink: 1;
+.weight-cell-bw .set-weight { flex: 1; min-width: 0; }
+/* BW pill toggle */
+.bw-toggle {
+  flex-shrink: 0;
+  height: 36px; padding: 0 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  color: var(--text2); background: var(--bg3);
+  border: 1px solid var(--border); border-radius: 8px;
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s;
 }
-.bw-label {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 700; color: var(--accent);
-  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+.bw-toggle.active {
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
 }
-.bw-label input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; margin: 0; }
 .set-num { font-size: 10px; font-weight: 700; color: var(--text2); text-align: center; text-transform: uppercase; }
 .set-notes-input {
   width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border);

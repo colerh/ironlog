@@ -541,19 +541,20 @@ function addLiftRow(container, exercise='', sets=[{}]) {
     const isBW = BW_EXERCISES.has(exSel.value);
     setRows.querySelectorAll('.set-group').forEach(g => {
       const existingWeight = g.querySelector('.set-weight')?.value || '';
-      const isBWNow = g.querySelector('.bw-check')?.checked;
+      const isBWNow = g.querySelector('.bw-toggle')?.classList.contains('active');
       const currentVal = isBWNow ? 'BW' : existingWeight;
       const cell = g.querySelector('.weight-cell-bw') || g.querySelector('.set-weight');
       const newHtml = buildWeightInput(currentVal, isBW);
       const tmp = document.createElement('div');
       tmp.innerHTML = newHtml;
       cell.replaceWith(...tmp.childNodes);
-      // Re-attach BW checkbox listener
-      const bwCheck = g.querySelector('.bw-check');
-      const wtInput = g.querySelector('.set-weight');
-      if (bwCheck) bwCheck.addEventListener('change', () => {
-        wtInput.style.display = bwCheck.checked ? 'none' : '';
-        if (bwCheck.checked) wtInput.value = '';
+      // Re-attach BW toggle listener
+      const bwToggle = g.querySelector('.bw-toggle');
+      const wtInput  = g.querySelector('.set-weight');
+      if (bwToggle) bwToggle.addEventListener('click', () => {
+        const on = bwToggle.classList.toggle('active');
+        wtInput.style.display = on ? 'none' : '';
+        if (on) wtInput.value = '';
       });
     });
   });
@@ -569,15 +570,13 @@ function addLiftRow(container, exercise='', sets=[{}]) {
 
 function buildWeightInput(weight, showBW) {
   if (!showBW) {
-    // Normal exercise — plain lbs input, no BW checkbox
     return `<input type="number" placeholder="lbs" value="${weight||''}" class="set-weight" min="0" inputmode="decimal">`;
   }
-  // BW exercise — single cell wrapping checkbox + optional +lbs field
-  const bwChecked = (!weight || weight === 'BW') ? 'checked' : '';
-  const numVal = (weight && weight !== 'BW') ? weight : '';
+  const bwActive = (!weight || weight === 'BW');
+  const numVal   = (weight && weight !== 'BW') ? weight : '';
   return `<div class="weight-cell-bw">
-    <label class="bw-label"><input type="checkbox" class="bw-check" ${bwChecked}> BW</label>
-    <input type="number" placeholder="+lbs" value="${numVal}" class="set-weight" min="0" inputmode="decimal"${bwChecked ? ' style="display:none"' : ''}>
+    <button type="button" class="bw-toggle${bwActive ? ' active' : ''}">BW</button>
+    <input type="number" placeholder="lbs" value="${numVal}" class="set-weight" min="0" inputmode="decimal"${bwActive ? ' style="display:none"' : ''}>
   </div>`;
 }
 
@@ -589,18 +588,19 @@ function addSetRow(container, {weight='',reps='',notes=''}={}, exerciseIsBW=fals
     <div class="set-row">
       <span class="set-num">S${n}</span>
       ${buildWeightInput(weight, showBW)}
-      <input type="number" placeholder="reps" value="${reps}" class="set-reps" min="0" inputmode="numeric">
       <button class="btn btn-ghost btn-icon btn-sm remove-set">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
+      <input type="number" placeholder="reps" value="${reps}" class="set-reps" min="0" inputmode="numeric">
     </div>
     <input type="text" class="set-notes-input" placeholder="Notes (optional)" value="${notes}">`;
-  const bwCheck = g.querySelector('.bw-check');
-  const wtInput = g.querySelector('.set-weight');
-  if (bwCheck) {
-    bwCheck.addEventListener('change', () => {
-      wtInput.style.display = bwCheck.checked ? 'none' : '';
-      if (bwCheck.checked) wtInput.value = '';
+  const bwToggle = g.querySelector('.bw-toggle');
+  const wtInput  = g.querySelector('.set-weight');
+  if (bwToggle) {
+    bwToggle.addEventListener('click', () => {
+      const on = bwToggle.classList.toggle('active');
+      wtInput.style.display = on ? 'none' : '';
+      if (on) wtInput.value = '';
     });
   }
   g.querySelector('.remove-set').addEventListener('click', ()=>{
@@ -684,7 +684,7 @@ function collectBlocks() {
         lifts: Array.from(div.querySelectorAll('.lift-card')).map(card => ({
           exercise: card.querySelector('.ex-select').value,
           sets: Array.from(card.querySelectorAll('.set-group')).map(g=>({
-            weight: g.querySelector('.bw-check')?.checked ? 'BW' : g.querySelector('.set-weight').value,
+            weight: g.querySelector('.bw-toggle')?.classList.contains('active') ? 'BW' : g.querySelector('.set-weight').value,
             reps:   g.querySelector('.set-reps').value,
             notes:  g.querySelector('.set-notes-input').value,
           })),
