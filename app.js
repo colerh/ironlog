@@ -24,6 +24,10 @@ const IC = {
   zap:         '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
   medal:       '<path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/>',
   run:         '<path d="M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M7.7 10.7 10 8l3 1 1.4 3.5"/><path d="m6 20 3-4 2 1 2-3.5"/><path d="M6 12h2l2-4"/>',
+  camera:      '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  'dollar-sign':'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  handshake:   '<path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 7.65l1.06 1.06L12 21.23l7.77-7.77 1.06-1.06a5.4 5.4 0 0 0-.41-7.82z"/>',
+  check:       '<polyline points="20 6 9 17 4 12"/>',
 };
 function svgI(name, size=16, color='currentColor') {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true">${IC[name]||''}</svg>`;
@@ -118,6 +122,8 @@ const getProfile   = () => ls.get('ironlog_profile');
 const setProfile   = p  => ls.set('ironlog_profile', p);
 const getLogs      = () => ls.get('ironlog_logs') || [];
 const setLogs      = v  => ls.set('ironlog_logs', v);
+const getWagers    = () => ls.get('ironlog_wagers') || [];
+const setWagers    = v  => ls.set('ironlog_wagers', v);
 const getTemplates = () => ls.get('ironlog_templates') || [];
 const setTemplates = v  => ls.set('ironlog_templates', v);
 const getGoals     = () => ls.get('ironlog_goals') || {};
@@ -214,6 +220,7 @@ async function pushWorkoutToFeed(familyCode, profile, entry) {
       userColor: profile.color,
       date:      entry.date,
       blocks:    blockSummaries,
+      hasPhoto:  !!entry.photo,
       stats: {
         bodyweight: entry.bodyweight,
         protein:    entry.protein,
@@ -242,6 +249,28 @@ function subscribeToFeed(familyCode, cb) {
   const q = query(collection(db,'feeds',familyCode,'events'), orderBy('savedAt','desc'), limit(40));
   feedUnsubscribe = onSnapshot(q, snap => {
     const items=[]; snap.forEach(d=>items.push({id:d.id, ...d.data()})); cb(items);
+  });
+}
+
+// ── Wager Firebase sync ───────────────────────────────────────────────────────
+let wagersUnsubscribe = null;
+let remoteWagers = [];
+
+async function pushWager(familyCode, wager) {
+  if (!db || !familyCode) return;
+  const { doc, setDoc } = window._fs;
+  try {
+    await setDoc(doc(db,'wagers',familyCode,'items',wager.id), wager, { merge: true });
+  } catch(e) {}
+}
+
+function subscribeToWagers(familyCode, cb) {
+  if (!db || !familyCode) return;
+  if (wagersUnsubscribe) wagersUnsubscribe();
+  const { collection, query, orderBy, onSnapshot } = window._fs;
+  const q = query(collection(db,'wagers',familyCode,'items'), orderBy('createdAt','desc'));
+  wagersUnsubscribe = onSnapshot(q, snap => {
+    const items=[]; snap.forEach(d=>items.push({...d.data()})); cb(items);
   });
 }
 
@@ -346,6 +375,12 @@ function buildFeedEntry(item) {
   const initial  = (item.userName||'?')[0].toUpperCase();
   const color    = item.userColor||'#6c63ff';
 
+  // Look up local photo proof for this user's own entries; remote entries show camera badge only
+  const localLog = item.date && item.userName === getProfile()?.name
+    ? getLogs().find(l => l.date === item.date) : null;
+  const photo = localLog?.photo || null;
+  const hasPhotoProof = photo || item.hasPhoto;
+
   return `<div class="feed-entry">
     <div class="feed-header">
       <div class="feed-avatar" style="background:${color}" onclick="showUserProfile('${safeUser}','${color}')">${initial}</div>
@@ -353,6 +388,10 @@ function buildFeedEntry(item) {
         <div class="feed-user" onclick="showUserProfile('${safeUser}','${color}')">${safeUser}</div>
         <div class="feed-date">${dateStr}</div>
       </div>
+      ${hasPhotoProof ? `<div class="feed-photo-thumb"${photo ? ` onclick="viewProofPhoto('${safeUser}',this.dataset.photo)" data-photo="${photo.replace(/"/g,'&quot;')}"` : ''} style="${!photo?'cursor:default':''}">
+        ${photo ? `<img src="${photo}" alt="Proof photo" class="feed-photo-img">` : `<div class="feed-photo-placeholder">${svgI('camera',16,'#6c63ff')}</div>`}
+        <div class="feed-photo-badge">${svgI('camera',10,'#fff')}</div>
+      </div>` : ''}
     </div>
     <div class="feed-blocks">${blockHtml}</div>
     ${statChips ? `<div class="feed-stats">${statChips}</div>` : ''}
@@ -483,6 +522,20 @@ window.showUserProfile = function(userName, userColor) {
       <button class="btn btn-ghost" style="width:100%" id="prof-close">Close</button>
     </div>`;
   overlay.querySelector('#prof-close').addEventListener('click', ()=>overlay.remove());
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+
+window.viewProofPhoto = function(userName, photo) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="photo-modal">
+      <div class="photo-modal-title">${svgI('camera',16,'#6c63ff')} ${userName}'s Proof</div>
+      <img src="${photo}" alt="Workout proof" class="photo-modal-img">
+      <button class="btn btn-ghost" style="width:100%;margin-top:12px" id="pm-close">Close</button>
+    </div>`;
+  overlay.querySelector('#pm-close').addEventListener('click', ()=>overlay.remove());
   overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
   document.body.appendChild(overlay);
 };
@@ -701,6 +754,21 @@ function collectBlocks() {
   });
 }
 
+let _pendingPhoto = null;
+
+function renderProofPreview(photo) {
+  const el = document.getElementById('proof-photo-preview');
+  if (!el) return;
+  if (!photo) { el.innerHTML = '<p style="color:var(--text2);font-size:13px;margin:0">No proof photo yet — tap SweatCam to snap one.</p>'; return; }
+  el.innerHTML = `<div class="proof-photo-wrap">
+    <img src="${photo}" alt="Workout proof" class="proof-photo-img">
+    <button class="btn btn-ghost btn-sm proof-photo-remove" id="remove-proof-btn">Remove</button>
+  </div>`;
+  document.getElementById('remove-proof-btn').addEventListener('click', () => {
+    _pendingPhoto = null; renderProofPreview(null);
+  });
+}
+
 let _autoSaveTimer = null;
 function scheduleAutoSave() {
   clearTimeout(_autoSaveTimer);
@@ -726,6 +794,10 @@ function loadLogForDate(date) {
   const existing = getLogs().find(l=>l.date===date);
   const blocks = hasDraft ? draft.blocks : getWorkoutBlocks(existing?.workout);
   if (blocks.length) blocks.forEach(b => addWorkoutBlock(b.type, b));
+
+  // Load any existing proof photo for this date
+  _pendingPhoto = existing?.photo || null;
+  renderProofPreview(_pendingPhoto);
 }
 
 function renderLogDay(jumpToDate) {
@@ -749,6 +821,17 @@ function renderLogDay(jumpToDate) {
         <button class="btn btn-ghost btn-sm" id="add-weights-btn">+ Weights</button>
         <button class="btn btn-ghost btn-sm" id="add-cardio-btn">+ Cardio</button>
       </div>
+    </div>
+
+    <div class="card" id="proof-photo-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">Proof Photo</h2>
+        <label class="btn btn-ghost btn-sm sweatcam-label" id="sweatcam-btn">
+          ${svgI('camera',14,'#6c63ff')} SweatCam
+          <input type="file" accept="image/*" capture="environment" id="sweatcam-input" style="display:none">
+        </label>
+      </div>
+      <div id="proof-photo-preview"></div>
     </div>
 
     <button class="btn btn-primary" id="save-log-btn" style="width:100%;margin-bottom:8px">
@@ -775,6 +858,18 @@ function renderLogDay(jumpToDate) {
   document.getElementById('tab-log').addEventListener('input', scheduleAutoSave);
   document.getElementById('tab-log').addEventListener('change', scheduleAutoSave);
 
+  // SweatCam photo capture
+  document.getElementById('sweatcam-input').addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      _pendingPhoto = ev.target.result;
+      renderProofPreview(_pendingPhoto);
+    };
+    reader.readAsDataURL(file);
+  });
+
   loadLogForDate(currentLogDate);
 }
 
@@ -784,11 +879,15 @@ function saveDay() {
     date:    currentLogDate,
     workout: { blocks: collectBlocks() },
   };
+  if (_pendingPhoto) entry.photo = _pendingPhoto;
   const idx = logs.findIndex(l=>l.date===currentLogDate);
   if (idx>=0) logs[idx]=entry; else logs.push(entry);
   setLogs(logs);
   clearLogDraft();
   toast('Day saved!');
+
+  // Auto-complete any pending wagers for today
+  if (entry.workout.blocks.length) checkWagersOnSave();
 
   const profile = getProfile();
   if (profile) {
@@ -1351,6 +1450,127 @@ function buildTmplRow(ex='') {
     </button></div>`;
 }
 
+// ── Wagers ────────────────────────────────────────────────────────────────────
+function checkWagersOnSave() {
+  const today = getTodayStr();
+  const profile = getProfile();
+  if (!profile) return;
+  const wagers = getWagers();
+  let changed = false;
+  wagers.forEach(w => {
+    if (w.owner === profile.name && w.status === 'active' && w.deadline >= today) {
+      w.status = 'won';
+      w.completedDate = today;
+      changed = true;
+      const code = profile.familyCode;
+      if (db && code) pushWager(code, w);
+    }
+  });
+  if (changed) {
+    setWagers(wagers);
+    toast('Wager marked as won!');
+    if (document.getElementById('tab-leaderboard').classList.contains('active')) renderLeaderboard();
+  }
+}
+
+function renderWagers() {
+  const profile = getProfile();
+  const myName  = profile?.name || '';
+  const all     = [...remoteWagers, ...getWagers()];
+  // De-dupe by id (remote wins)
+  const seen = new Set();
+  const wagers = all.filter(w => { if (seen.has(w.id)) return false; seen.add(w.id); return true; });
+
+  const active  = wagers.filter(w => w.status === 'active');
+  const past    = wagers.filter(w => w.status !== 'active');
+
+  const statusBadge = w => {
+    if (w.status === 'won')  return `<span class="wager-badge won">${svgI('check',10,'#22c55e')} Won</span>`;
+    if (w.status === 'lost') return `<span class="wager-badge lost">Lost</span>`;
+    const overdue = w.deadline < getTodayStr();
+    return overdue ? `<span class="wager-badge overdue">Overdue</span>` : `<span class="wager-badge active">Active</span>`;
+  };
+
+  const wagerCard = w => `
+    <div class="wager-card">
+      <div class="wager-card-top">
+        <div class="wager-info">
+          <div class="wager-stake">${svgI('dollar-sign',13,'#f59e0b')} ${w.stake}</div>
+          <div class="wager-desc">${w.description}</div>
+          <div class="wager-meta">${w.owner} · due ${fmtDateShort(w.deadline)}</div>
+        </div>
+        ${statusBadge(w)}
+      </div>
+      ${w.owner === myName && w.status === 'active' ? `<button class="btn btn-ghost btn-sm wager-give-up" onclick="markWagerLost('${w.id}')">Give Up</button>` : ''}
+    </div>`;
+
+  return `
+    <div class="card" style="margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h2 style="margin:0">${svgI('dollar-sign',16,'#f59e0b')} Wagers</h2>
+        <button class="btn btn-primary btn-sm" id="new-wager-btn">+ New Wager</button>
+      </div>
+      ${active.length ? active.map(wagerCard).join('') : '<p style="color:var(--text2);font-size:13px">No active wagers.</p>'}
+      ${past.length ? `<details style="margin-top:10px"><summary style="color:var(--text2);font-size:13px;cursor:pointer">Past wagers (${past.length})</summary><div style="margin-top:8px">${past.map(wagerCard).join('')}</div></details>` : ''}
+    </div>`;
+}
+
+window.markWagerLost = function(id) {
+  if (!confirm('Mark this wager as lost?')) return;
+  const wagers = getWagers();
+  const w = wagers.find(w => w.id === id);
+  if (!w) return;
+  w.status = 'lost';
+  setWagers(wagers);
+  const p = getProfile();
+  if (db && p?.familyCode) pushWager(p.familyCode, w);
+  renderLeaderboard();
+  toast('Wager marked as lost.');
+};
+
+function openWagerModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const minDeadline = getTodayStr();
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${svgI('dollar-sign',18,'#f59e0b')} New Wager</h2>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:14px">Set a goal. If you log a workout before the deadline, you win. Otherwise, you owe the stakes.</p>
+      <label>What you're wagering</label>
+      <input id="wager-stake" type="text" placeholder="e.g. Buy dinner, do laundry…" style="margin-bottom:12px">
+      <label>Goal / Challenge description</label>
+      <input id="wager-desc" type="text" placeholder="e.g. Hit the gym 4× this week" style="margin-bottom:12px">
+      <label>Deadline</label>
+      <input id="wager-deadline" type="date" min="${minDeadline}" value="${minDeadline}" style="margin-bottom:16px">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" id="wager-save" style="flex:1">Create Wager</button>
+        <button class="btn btn-ghost"   id="wager-cancel">Cancel</button>
+      </div>
+    </div>`;
+  overlay.querySelector('#wager-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  overlay.querySelector('#wager-save').addEventListener('click', () => {
+    const stake    = overlay.querySelector('#wager-stake').value.trim();
+    const desc     = overlay.querySelector('#wager-desc').value.trim();
+    const deadline = overlay.querySelector('#wager-deadline').value;
+    if (!stake || !desc || !deadline) { toast('Fill in all fields'); return; }
+    const p = getProfile();
+    const wager = {
+      id:          Date.now().toString(),
+      owner:       p?.name || 'Me',
+      stake, description: desc, deadline,
+      status:      'active',
+      createdAt:   Date.now(),
+    };
+    setWagers([...getWagers(), wager]);
+    if (db && p?.familyCode) pushWager(p.familyCode, wager);
+    overlay.remove();
+    renderLeaderboard();
+    toast('Wager created!');
+  });
+  document.body.appendChild(overlay);
+}
+
 // ── History ───────────────────────────────────────────────────────────────────
 function renderHistory() {
   const logs = getLogs().slice().sort((a,b)=>b.date.localeCompare(a.date));
@@ -1409,6 +1629,20 @@ function renderLeaderboard() {
   const myScore=calcPoints(logs,goals), myWork=logs.filter(l=>getWorkoutBlocks(l.workout).length).length;
   const local={name:p?.name||'You',color:p?.color||'#6c63ff',score:myScore,workouts:myWork};
   renderLbRows([...leaderboardData.filter(m=>m.name!==p?.name),local]);
+
+  // Wagers section
+  const wagersHtml = renderWagers();
+  const existing = document.getElementById('wagers-section');
+  if (existing) {
+    existing.outerHTML = `<div id="wagers-section">${wagersHtml}</div>`;
+  } else {
+    const lb = document.getElementById('tab-leaderboard');
+    const wagDiv = document.createElement('div');
+    wagDiv.id = 'wagers-section';
+    wagDiv.innerHTML = wagersHtml;
+    lb.appendChild(wagDiv);
+  }
+  document.getElementById('new-wager-btn')?.addEventListener('click', openWagerModal);
 }
 function renderLbRows(members) {
   const sorted=[...members].sort((a,b)=>b.score-a.score);
@@ -1532,6 +1766,7 @@ function initApp() {
     if(code&&db){
       subscribeLeaderboard(code,members=>{ leaderboardData=members; renderLeaderboard(); });
       subscribeToFeed(code, items=>{ remoteFeedData=items; renderHome(); });
+      subscribeToWagers(code, items=>{ remoteWagers=items; renderLeaderboard(); });
       const logs=getLogs();
       syncLeaderboardEntry(code,p,calcPoints(logs,getGoals()),logs.filter(l=>getWorkoutBlocks(l.workout).length).length);
     }
@@ -1542,6 +1777,7 @@ function initApp() {
   if(profile.familyCode&&db){
     subscribeLeaderboard(profile.familyCode,members=>{ leaderboardData=members; renderLeaderboard(); });
     subscribeToFeed(profile.familyCode, items=>{ remoteFeedData=items; renderHome(); });
+    subscribeToWagers(profile.familyCode, items=>{ remoteWagers=items; renderLeaderboard(); });
     // Push current score so new members see us immediately on join
     const logs=getLogs();
     syncLeaderboardEntry(profile.familyCode,profile,calcPoints(logs,getGoals()),logs.filter(l=>getWorkoutBlocks(l.workout).length).length);
