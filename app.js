@@ -352,10 +352,10 @@ function buildFeedEntry(item) {
   const blockHtml = (item.blocks||[]).map(b => {
     if (b.type==='cardio') {
       const detail = [b.activity, b.distance?b.distance+' mi':'', b.time?b.time:''].filter(Boolean).join(' · ');
-      return `<div class="feed-block"><div class="feed-block-title">${svgI('activity',14,'#22c55e')} Cardio</div><div class="feed-block-detail">${detail}</div></div>`;
+      return `<div class="feed-block"><span class="feed-block-label">${svgI('activity',14,'#22c55e')} Cardio</span><span class="feed-block-detail">${detail}</span></div>`;
     }
     const exList = (b.exercises||[]).join(', ');
-    return `<div class="feed-block"><div class="feed-block-title">${svgI('dumbbell',14,'#6c63ff')} Weights · ${b.exerciseCount} exercise${b.exerciseCount!==1?'s':''}</div><div class="feed-block-detail">${exList}</div></div>`;
+    return `<div class="feed-block"><span class="feed-block-label">${svgI('dumbbell',14,'#6c63ff')} Weights · ${b.exerciseCount} ex</span><span class="feed-block-detail">${exList}</span></div>`;
   }).join('');
 
   const stats = item.stats||{};
@@ -381,7 +381,7 @@ function buildFeedEntry(item) {
   const photo = localLog?.photo || null;
   const hasPhotoProof = photo || item.hasPhoto;
 
-  return `<div class="feed-entry">
+  return `<div class="feed-entry" style="--feed-color:${color}">
     <div class="feed-header">
       <div class="feed-avatar" style="background:${color}" onclick="showUserProfile('${safeUser}','${color}')">${initial}</div>
       <div style="flex:1;min-width:0">
@@ -430,11 +430,17 @@ function renderHomeRings() {
   const cGoal = goals.calories  || 2500;
   const sGoal = goals.sleep     || 8;
 
-  return `<div class="activity-rings">
-    ${buildRing('Protein',  protein/pGoal,  `${Math.round(protein)}/${pGoal}g`, '#22c55e')}
-    ${buildRing('Calories', calories/cGoal, `${Math.round(calories)}/${cGoal}`, '#f59e0b')}
-    ${buildRing('Sleep',    sleep/sGoal,    sleep?`${sleep}/${sGoal}h`:'—',    '#06b6d4')}
-    ${buildRing('Workout',  hasWorkout?1:0, hasWorkout?'Done!':'Rest',          '#6c63ff')}
+  const hr  = new Date().getHours();
+  const tod = hr < 12 ? 'Morning' : hr < 18 ? 'Afternoon' : 'Evening';
+  const profile2 = getProfile();
+  return `<div class="greeting">Good ${tod},<br>${profile2?.name || 'Athlete'} 💪</div>
+  <div class="rings-card">
+    <div class="activity-rings">
+      ${buildRing('Protein',  protein/pGoal,  `${Math.round(protein)}/${pGoal}g`, '#22c55e')}
+      ${buildRing('Calories', calories/cGoal, `${Math.round(calories)}/${cGoal}`, '#f59e0b')}
+      ${buildRing('Sleep',    sleep/sGoal,    sleep?`${sleep}/${sGoal}h`:'—',    '#06b6d4')}
+      ${buildRing('Workout',  hasWorkout?1:0, hasWorkout?'Done!':'Rest',          '#6c63ff')}
+    </div>
   </div>`;
 }
 
@@ -834,10 +840,12 @@ function renderLogDay(jumpToDate) {
       <div id="proof-photo-preview"></div>
     </div>
 
-    <button class="btn btn-primary" id="save-log-btn" style="width:100%;margin-bottom:8px">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-      Save Day
-    </button>`;
+    <div class="save-day-wrap">
+      <button class="btn btn-primary" id="save-log-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Day
+      </button>
+    </div>`;
 
   // Theme toggle (mobile log page)
   const tb = document.getElementById('log-theme-btn');
@@ -1290,17 +1298,18 @@ function renderHealth() {
     </div>
 
     <div class="card">
-      <div class="health-totals-row">
-        <div><span class="health-total-label">🔥 Calories</span><span class="health-total-val" style="color:var(--amber)">${Math.round(cTotal)} <span style="opacity:.5;font-size:11px">/ ${cGoal}</span></span></div>
-        <div style="width:1px;background:var(--border);align-self:stretch"></div>
-        <div><span class="health-total-label">🥩 Protein</span><span class="health-total-val" style="color:var(--green)">${Math.round(pTotal)}g <span style="opacity:.5;font-size:11px">/ ${pGoal}g</span></span></div>
-      </div>
-      <div class="health-bars-row">
-        <div class="health-total-bar" style="flex:1">
-          <div class="health-total-fill" style="width:${Math.min(100,cGoal?cTotal/cGoal*100:0).toFixed(1)}%;background:var(--amber)"></div>
+      <div class="health-stat-tiles">
+        <div class="health-stat-tile">
+          <div class="health-stat-emoji">🔥</div>
+          <div class="health-stat-num" style="color:var(--amber)">${Math.round(cTotal)}</div>
+          <div class="health-stat-sub">of ${cGoal} cal</div>
+          <div class="health-stat-bar"><div class="health-stat-fill" style="width:${Math.min(100,cGoal?cTotal/cGoal*100:0).toFixed(1)}%;background:var(--amber)"></div></div>
         </div>
-        <div class="health-total-bar" style="flex:1">
-          <div class="health-total-fill" style="width:${Math.min(100,pGoal?pTotal/pGoal*100:0).toFixed(1)}%;background:var(--green)"></div>
+        <div class="health-stat-tile">
+          <div class="health-stat-emoji">🥩</div>
+          <div class="health-stat-num" style="color:var(--green)">${Math.round(pTotal)}g</div>
+          <div class="health-stat-sub">of ${pGoal}g protein</div>
+          <div class="health-stat-bar"><div class="health-stat-fill" style="width:${Math.min(100,pGoal?pTotal/pGoal*100:0).toFixed(1)}%;background:var(--green)"></div></div>
         </div>
       </div>
 
@@ -1655,7 +1664,7 @@ function renderLbRows(members) {
         <div class="lb-name" onclick="showUserProfile('${m.name.replace(/'/g,"\\'")}','${m.color}')">${m.name}</div>
         <div class="lb-sub">${m.workouts} workout${m.workouts!==1?'s':''}</div>
       </div>
-      <div class="lb-score">${m.score} pts</div>
+      <div class="lb-score">${m.score}<span class="lb-score-unit"> pts</span></div>
     </div>`).join('');
 }
 
